@@ -89,7 +89,7 @@ func (c *Client) do(ctx context.Context, method, path string, body any) ([]byte,
 			return nil, 0, err
 		}
 		respBody, err := io.ReadAll(resp.Body)
-		resp.Body.Close()
+		_ = resp.Body.Close()
 		if err != nil {
 			return nil, resp.StatusCode, fmt.Errorf("reading response body: %w", err)
 		}

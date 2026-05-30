@@ -19,7 +19,7 @@ func TestGetObjectFound(t *testing.T) {
 			t.Errorf("missing bearer header, got %q", got)
 		}
 		w.Header().Set("Content-Type", "application/json")
-		w.Write([]byte(`{"id":"r_1","managed":true,"enabled":true}`))
+		_, _ = w.Write([]byte(`{"id":"r_1","managed":true,"enabled":true}`))
 	}))
 	defer srv.Close()
 
@@ -41,7 +41,7 @@ func TestGetObjectFound(t *testing.T) {
 func TestGetObjectNotFound(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusNotFound)
-		w.Write([]byte(`{"code":"not_found","message":"nope"}`))
+		_, _ = w.Write([]byte(`{"code":"not_found","message":"nope"}`))
 	}))
 	defer srv.Close()
 
@@ -57,7 +57,7 @@ func TestGetObjectNotFound(t *testing.T) {
 func TestValidationErrorEnvelope(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusUnprocessableEntity)
-		w.Write([]byte(`{"code":"validation_failed","message":"bad","errors":[{"field":"target","code":"required","message":"is required"}]}`))
+		_, _ = w.Write([]byte(`{"code":"validation_failed","message":"bad","errors":[{"field":"target","code":"required","message":"is required"}]}`))
 	}))
 	defer srv.Close()
 
@@ -84,10 +84,10 @@ func TestRetryOnLocked(t *testing.T) {
 		if n < 3 {
 			w.Header().Set("Retry-After", "0")
 			w.WriteHeader(http.StatusLocked)
-			w.Write([]byte(`{"code":"locked","message":"busy"}`))
+			_, _ = w.Write([]byte(`{"code":"locked","message":"busy"}`))
 			return
 		}
-		w.Write([]byte(`{"id":"r_1"}`))
+		_, _ = w.Write([]byte(`{"id":"r_1"}`))
 	}))
 	defer srv.Close()
 
@@ -107,7 +107,7 @@ func TestLockedExhaustsRetries(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Retry-After", "0")
 		w.WriteHeader(http.StatusLocked)
-		w.Write([]byte(`{"code":"locked","message":"busy"}`))
+		_, _ = w.Write([]byte(`{"code":"locked","message":"busy"}`))
 	}))
 	defer srv.Close()
 
@@ -123,7 +123,7 @@ func TestLockedExhaustsRetries(t *testing.T) {
 func TestDeleteToleratesNotFound(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusNotFound)
-		w.Write([]byte(`{"code":"not_found"}`))
+		_, _ = w.Write([]byte(`{"code":"not_found"}`))
 	}))
 	defer srv.Close()
 
@@ -134,7 +134,7 @@ func TestDeleteToleratesNotFound(t *testing.T) {
 
 func TestGetList(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Write([]byte(`[{"mac":"aa:bb:cc:dd:ee:ff","ip":"10.0.0.2"}]`))
+		_, _ = w.Write([]byte(`[{"mac":"aa:bb:cc:dd:ee:ff","ip":"10.0.0.2"}]`))
 	}))
 	defer srv.Close()
 
