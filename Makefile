@@ -7,7 +7,7 @@ NAME := uapi
 OS_ARCH := $(shell go env GOOS)_$(shell go env GOARCH)
 INSTALL_DIR := $(HOME)/.terraform.d/plugins/$(HOSTNAME)/$(NAMESPACE)/$(NAME)/$(VERSION)/$(OS_ARCH)
 
-.PHONY: build install test testacc fmt vet tidy clean
+.PHONY: build install test testacc fmt vet tidy docs clean
 
 build:
 	go build -ldflags "-X main.version=$(VERSION)" -o $(BINARY) .
@@ -31,6 +31,10 @@ vet:
 
 tidy:
 	go mod tidy
+
+# Regenerate docs/ from schema descriptions and examples/.
+docs:
+	go generate ./...
 
 clean:
 	rm -f $(BINARY)

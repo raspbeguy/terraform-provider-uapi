@@ -32,13 +32,13 @@ func (d *dhcpHostDataSource) Schema(_ context.Context, _ datasource.SchemaReques
 		Description: "Look up a static DHCP lease by id.",
 		Attributes: map[string]dsschema.Attribute{
 			"id":        dsIDAttribute(),
-			"managed":   dsschema.BoolAttribute{Computed: true},
-			"name":      dsschema.StringAttribute{Computed: true},
-			"mac":       dsschema.StringAttribute{Computed: true},
-			"ip":        dsschema.StringAttribute{Computed: true},
-			"leasetime": dsschema.StringAttribute{Computed: true},
-			"tag":       dsschema.StringAttribute{Computed: true},
-			"dns":       dsschema.BoolAttribute{Computed: true},
+			"managed":   dsManagedAttribute(),
+			"name":      dsComputedString("Hostname for the static lease."),
+			"mac":       dsComputedString("Client MAC address."),
+			"ip":        dsComputedString("Assigned IPv4 or IPv6 address."),
+			"leasetime": dsComputedString("Lease duration like '12h', '30m', '1d', or seconds."),
+			"tag":       dsComputedString("dnsmasq tag applied to the host."),
+			"dns":       dsComputedBool("Whether a DNS entry is added for the host."),
 		},
 	}
 }
@@ -96,14 +96,15 @@ func (d *dhcpLeasesDataSource) Schema(_ context.Context, _ datasource.SchemaRequ
 		Description: "The current active DHCP leases (IPv4) reported by the router at runtime.",
 		Attributes: map[string]dsschema.Attribute{
 			"leases": dsschema.ListNestedAttribute{
-				Computed: true,
+				Computed:    true,
+				Description: "Active DHCP leases.",
 				NestedObject: dsschema.NestedAttributeObject{
 					Attributes: map[string]dsschema.Attribute{
 						"expires_at": dsschema.Int64Attribute{Computed: true, Description: "Unix epoch seconds when the lease expires."},
-						"mac":        dsschema.StringAttribute{Computed: true},
-						"ip":         dsschema.StringAttribute{Computed: true},
-						"hostname":   dsschema.StringAttribute{Computed: true},
-						"duid":       dsschema.StringAttribute{Computed: true},
+						"mac":        dsComputedString("Client MAC address."),
+						"ip":         dsComputedString("Assigned IP address."),
+						"hostname":   dsComputedString("Client hostname, if known."),
+						"duid":       dsComputedString("Client DUID, if known."),
 					},
 				},
 			},

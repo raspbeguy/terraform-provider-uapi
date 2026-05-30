@@ -32,21 +32,22 @@ func (d *firewallRuleDataSource) Schema(_ context.Context, _ datasource.SchemaRe
 		Description: "Look up a firewall rule by id.",
 		Attributes: map[string]dsschema.Attribute{
 			"id":      dsIDAttribute(),
-			"managed": dsschema.BoolAttribute{Computed: true},
-			"name":    dsschema.StringAttribute{Computed: true},
-			"target":  dsschema.StringAttribute{Computed: true},
-			"enabled": dsschema.BoolAttribute{Computed: true},
+			"managed": dsManagedAttribute(),
+			"name":    dsComputedString("Rule name."),
+			"target":  dsComputedString("Rule action: ACCEPT, REJECT, DROP, NOTRACK, or MARK."),
+			"enabled": dsComputedBool("Whether the rule is active."),
 			"match": dsschema.SingleNestedAttribute{
-				Computed: true,
+				Computed:    true,
+				Description: "Match conditions for the rule.",
 				Attributes: map[string]dsschema.Attribute{
-					"src_zone":  dsschema.StringAttribute{Computed: true},
-					"dest_zone": dsschema.StringAttribute{Computed: true},
-					"src_ip":    dsStringListAttribute(),
-					"dest_ip":   dsStringListAttribute(),
-					"src_port":  dsStringListAttribute(),
-					"dest_port": dsStringListAttribute(),
-					"proto":     dsStringListAttribute(),
-					"family":    dsschema.StringAttribute{Computed: true},
+					"src_zone":  dsComputedString("Source firewall zone name."),
+					"dest_zone": dsComputedString("Destination firewall zone name."),
+					"src_ip":    dsComputedStringList("Source IP addresses or CIDRs."),
+					"dest_ip":   dsComputedStringList("Destination IP addresses or CIDRs."),
+					"src_port":  dsComputedStringList("Source ports."),
+					"dest_port": dsComputedStringList("Destination ports."),
+					"proto":     dsComputedStringList("Protocols: tcp, udp, icmp, icmpv6, esp, ah, any, all."),
+					"family":    dsComputedString("Address family: any, ipv4, or ipv6."),
 				},
 			},
 		},
@@ -95,15 +96,15 @@ func (d *firewallZoneDataSource) Schema(_ context.Context, _ datasource.SchemaRe
 		Description: "Look up a firewall zone by id.",
 		Attributes: map[string]dsschema.Attribute{
 			"id":      dsIDAttribute(),
-			"managed": dsschema.BoolAttribute{Computed: true},
-			"name":    dsschema.StringAttribute{Computed: true},
-			"input":   dsschema.StringAttribute{Computed: true},
-			"output":  dsschema.StringAttribute{Computed: true},
-			"forward": dsschema.StringAttribute{Computed: true},
-			"network": dsStringListAttribute(),
-			"masq":    dsschema.BoolAttribute{Computed: true},
-			"mtu_fix": dsschema.BoolAttribute{Computed: true},
-			"family":  dsschema.StringAttribute{Computed: true},
+			"managed": dsManagedAttribute(),
+			"name":    dsComputedString("Zone name."),
+			"input":   dsComputedString("Default policy for input traffic: ACCEPT, REJECT, or DROP."),
+			"output":  dsComputedString("Default policy for output traffic."),
+			"forward": dsComputedString("Default policy for forwarded traffic."),
+			"network": dsComputedStringList("Network interfaces covered by this zone."),
+			"masq":    dsComputedBool("Whether masquerading (NAT) is enabled."),
+			"mtu_fix": dsComputedBool("Whether MSS clamping is enabled."),
+			"family":  dsComputedString("Address family: any, ipv4, or ipv6."),
 		},
 	}
 }
@@ -150,22 +151,23 @@ func (d *firewallRedirectDataSource) Schema(_ context.Context, _ datasource.Sche
 		Description: "Look up a firewall redirect by id.",
 		Attributes: map[string]dsschema.Attribute{
 			"id":      dsIDAttribute(),
-			"managed": dsschema.BoolAttribute{Computed: true},
-			"name":    dsschema.StringAttribute{Computed: true},
-			"target":  dsschema.StringAttribute{Computed: true},
-			"enabled": dsschema.BoolAttribute{Computed: true},
+			"managed": dsManagedAttribute(),
+			"name":    dsComputedString("Redirect name."),
+			"target":  dsComputedString("Redirect type: DNAT or SNAT."),
+			"enabled": dsComputedBool("Whether the redirect is active."),
 			"match": dsschema.SingleNestedAttribute{
-				Computed: true,
+				Computed:    true,
+				Description: "Match conditions for the redirect.",
 				Attributes: map[string]dsschema.Attribute{
-					"src_zone":  dsschema.StringAttribute{Computed: true},
-					"dest_zone": dsschema.StringAttribute{Computed: true},
-					"src_ip":    dsStringListAttribute(),
-					"src_port":  dsStringListAttribute(),
-					"src_dport": dsStringListAttribute(),
-					"dest_ip":   dsStringListAttribute(),
-					"dest_port": dsStringListAttribute(),
-					"proto":     dsStringListAttribute(),
-					"family":    dsschema.StringAttribute{Computed: true},
+					"src_zone":  dsComputedString("Source firewall zone name."),
+					"dest_zone": dsComputedString("Destination firewall zone name."),
+					"src_ip":    dsComputedStringList("Source IP addresses or CIDRs."),
+					"src_port":  dsComputedStringList("Source ports."),
+					"src_dport": dsComputedStringList("Incoming (destination) ports to redirect."),
+					"dest_ip":   dsComputedStringList("Internal destination IP addresses."),
+					"dest_port": dsComputedStringList("Internal destination ports."),
+					"proto":     dsComputedStringList("Protocols: tcp, udp, icmp, icmpv6, esp, ah, any, all."),
+					"family":    dsComputedString("Address family: any, ipv4, or ipv6."),
 				},
 			},
 		},
@@ -196,6 +198,18 @@ func dsIDAttribute() dsschema.StringAttribute {
 	return dsschema.StringAttribute{Required: true, Description: "Resource id to look up."}
 }
 
-func dsStringListAttribute() dsschema.ListAttribute {
-	return dsschema.ListAttribute{ElementType: types.StringType, Computed: true}
+func dsComputedString(desc string) dsschema.StringAttribute {
+	return dsschema.StringAttribute{Computed: true, Description: desc}
+}
+
+func dsComputedBool(desc string) dsschema.BoolAttribute {
+	return dsschema.BoolAttribute{Computed: true, Description: desc}
+}
+
+func dsComputedStringList(desc string) dsschema.ListAttribute {
+	return dsschema.ListAttribute{ElementType: types.StringType, Computed: true, Description: desc}
+}
+
+func dsManagedAttribute() dsschema.BoolAttribute {
+	return dsComputedBool("Whether the underlying uci section is uapi-managed.")
 }
