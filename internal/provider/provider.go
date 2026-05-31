@@ -98,6 +98,7 @@ func (p *uapiProvider) Configure(ctx context.Context, req provider.ConfigureRequ
 
 func (p *uapiProvider) Resources(_ context.Context) []func() resource.Resource {
 	return []func() resource.Resource{
+		// 1.0 surface
 		NewFirewallRuleResource,
 		NewFirewallZoneResource,
 		NewFirewallRedirectResource,
@@ -107,11 +108,46 @@ func (p *uapiProvider) Resources(_ context.Context) []func() resource.Resource {
 		NewWirelessInterfaceResource,
 		NewDHCPHostResource,
 		NewSystemResource,
+		// 1.1 network
+		NewNetworkRouteResource,
+		NewNetworkRuleResource,
+		NewNetworkBridgeVlanResource,
+		NewNetworkWireguardPeerResource,
+		// 1.1 firewall
+		NewFirewallForwardingResource,
+		NewFirewallDefaultsResource,
+		// 1.1 dhcp
+		NewDhcpServerResource,
+		NewDhcpDnsmasqResource,
+		NewDhcpOdhcpdResource,
+		// 1.1 snmpd
+		NewSnmpdAccessResource,
+		NewSnmpdAgentResource,
+		NewSnmpdCom2secResource,
+		NewSnmpdGroupResource,
+		NewSnmpdSystemResource,
+		// 1.1 uhttpd / dropbear
+		NewUhttpdCertResource,
+		NewUhttpdInstanceResource,
+		NewDropbearInstanceResource,
+		// 1.1 system / sqm
+		NewSystemTimeserverResource,
+		NewSqmQueueResource,
+		// 1.1 vnstat + misc singletons
+		NewVnstatInterfaceResource,
+		NewVnstatConfigResource,
+		NewLldpdConfigResource,
+		NewPrometheusNodeExporterLuaConfigResource,
+		NewUnboundServerResource,
+		// 1.1 packages
+		NewPackageResource,
+		NewPackageFeedResource,
 	}
 }
 
 func (p *uapiProvider) DataSources(_ context.Context) []func() datasource.DataSource {
 	return []func() datasource.DataSource{
+		// 1.0 surface
 		NewFirewallRuleDataSource,
 		NewFirewallZoneDataSource,
 		NewFirewallRedirectDataSource,
@@ -122,6 +158,40 @@ func (p *uapiProvider) DataSources(_ context.Context) []func() datasource.DataSo
 		NewDHCPHostDataSource,
 		NewSystemDataSource,
 		NewDHCPLeasesDataSource,
+		// 1.1 network
+		NewNetworkRouteDataSource,
+		NewNetworkRuleDataSource,
+		NewNetworkBridgeVlanDataSource,
+		NewNetworkWireguardPeerDataSource,
+		// 1.1 firewall
+		NewFirewallForwardingDataSource,
+		NewFirewallDefaultsDataSource,
+		// 1.1 dhcp
+		NewDhcpServerDataSource,
+		NewDhcpDnsmasqDataSource,
+		NewDhcpOdhcpdDataSource,
+		// 1.1 snmpd
+		NewSnmpdAccessDataSource,
+		NewSnmpdAgentDataSource,
+		NewSnmpdCom2secDataSource,
+		NewSnmpdGroupDataSource,
+		NewSnmpdSystemDataSource,
+		// 1.1 uhttpd / dropbear
+		NewUhttpdCertDataSource,
+		NewUhttpdInstanceDataSource,
+		NewDropbearInstanceDataSource,
+		// 1.1 system / sqm
+		NewSystemTimeserverDataSource,
+		NewSqmQueueDataSource,
+		// 1.1 vnstat + misc singletons
+		NewVnstatInterfaceDataSource,
+		NewVnstatConfigDataSource,
+		NewLldpdConfigDataSource,
+		NewPrometheusNodeExporterLuaConfigDataSource,
+		NewUnboundServerDataSource,
+		// 1.1 packages
+		NewPackageDataSource,
+		NewPackageFeedDataSource,
 	}
 }
 

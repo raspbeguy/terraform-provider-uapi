@@ -1,0 +1,211 @@
+package provider
+
+import (
+	"context"
+
+	"github.com/hashicorp/terraform-plugin-framework/resource"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
+	"github.com/hashicorp/terraform-plugin-framework/types"
+
+	"github.com/raspbeguy/terraform-provider-uapi/internal/client"
+)
+
+const uhttpdInstanceCollection = "uhttpd/instances"
+
+var (
+	_ resource.Resource                = &uhttpdInstanceResource{}
+	_ resource.ResourceWithConfigure   = &uhttpdInstanceResource{}
+	_ resource.ResourceWithImportState = &uhttpdInstanceResource{}
+)
+
+type uhttpdInstanceResource struct {
+	client *client.Client
+}
+
+func NewUhttpdInstanceResource() resource.Resource {
+	return &uhttpdInstanceResource{}
+}
+
+type uhttpdInstanceModel struct {
+	ID             types.String `tfsdk:"id"`
+	Managed        types.Bool   `tfsdk:"managed"`
+	ListenHTTP     types.List   `tfsdk:"listen_http"`
+	ListenHTTPS    types.List   `tfsdk:"listen_https"`
+	Home           types.String `tfsdk:"home"`
+	Cert           types.String `tfsdk:"cert"`
+	Key            types.String `tfsdk:"key"`
+	CGIPrefix      types.String `tfsdk:"cgi_prefix"`
+	LuaPrefix      types.List   `tfsdk:"lua_prefix"`
+	UcodePrefix    types.List   `tfsdk:"ucode_prefix"`
+	MaxRequests    types.String `tfsdk:"max_requests"`
+	MaxConnections types.String `tfsdk:"max_connections"`
+	ScriptTimeout  types.String `tfsdk:"script_timeout"`
+	NetworkTimeout types.String `tfsdk:"network_timeout"`
+	HTTPKeepalive  types.String `tfsdk:"http_keepalive"`
+	TCPKeepalive   types.String `tfsdk:"tcp_keepalive"`
+	IndexPage      types.List   `tfsdk:"index_page"`
+	ErrorPage      types.String `tfsdk:"error_page"`
+	NoDirlists     types.Bool   `tfsdk:"no_dirlists"`
+	NoSymlinks     types.Bool   `tfsdk:"no_symlinks"`
+	RFC1918Filter  types.Bool   `tfsdk:"rfc1918_filter"`
+}
+
+func (r *uhttpdInstanceResource) Metadata(_ context.Context, req resource.MetadataRequest, resp *resource.MetadataResponse) {
+	resp.TypeName = req.ProviderTypeName + "_uhttpd_instance"
+}
+
+func (r *uhttpdInstanceResource) Configure(_ context.Context, req resource.ConfigureRequest, resp *resource.ConfigureResponse) {
+	r.client = clientFromResourceConfigure(req, resp)
+}
+
+func (r *uhttpdInstanceResource) Schema(_ context.Context, _ resource.SchemaRequest, resp *resource.SchemaResponse) {
+	resp.Schema = schema.Schema{
+		Description: "A uhttpd web server instance (uci uhttpd.uhttpd).",
+		Attributes: map[string]schema.Attribute{
+			"id":              computedIDAttribute(),
+			"managed":         managedAttribute(),
+			"listen_http":     optionalComputedStringList("Addresses to listen on for HTTP, each <host>:<port> (e.g. 0.0.0.0:80 or [::]:80)."),
+			"listen_https":    optionalComputedStringList("Addresses to listen on for HTTPS, each <host>:<port> (e.g. 0.0.0.0:443 or [::]:443)."),
+			"home":            schema.StringAttribute{Optional: true, Description: "Document root served by this instance."},
+			"cert":            schema.StringAttribute{Optional: true, Description: "Path to the TLS certificate."},
+			"key":             schema.StringAttribute{Optional: true, Description: "Path to the TLS private key."},
+			"cgi_prefix":      schema.StringAttribute{Optional: true, Description: "URL prefix mapped to CGI scripts."},
+			"lua_prefix":      optionalComputedStringList("Lua handler prefixes, each <url>=<handler>."),
+			"ucode_prefix":    optionalComputedStringList("ucode handler prefixes, each <url>=<handler>."),
+			"max_requests":    schema.StringAttribute{Optional: true, Description: "Maximum number of concurrent requests."},
+			"max_connections": schema.StringAttribute{Optional: true, Description: "Maximum number of concurrent connections."},
+			"script_timeout":  schema.StringAttribute{Optional: true, Description: "Maximum seconds a CGI/Lua/ucode script may run."},
+			"network_timeout": schema.StringAttribute{Optional: true, Description: "Maximum seconds to wait for network activity."},
+			"http_keepalive":  schema.StringAttribute{Optional: true, Description: "HTTP keep-alive timeout in seconds."},
+			"tcp_keepalive":   schema.StringAttribute{Optional: true, Description: "TCP keep-alive interval in seconds."},
+			"index_page":      optionalComputedStringList("Index file names tried for directory requests."),
+			"error_page":      schema.StringAttribute{Optional: true, Description: "Virtual URL or CGI script handling error pages."},
+			"no_dirlists":     optionalComputedBool("Disable directory listings. Defaults to false."),
+			"no_symlinks":     optionalComputedBool("Do not follow symbolic links. Defaults to false."),
+			"rfc1918_filter":  optionalComputedBool("Reject requests from public IPs to private (RFC1918) targets. Defaults to false."),
+		},
+	}
+}
+
+func (r *uhttpdInstanceResource) body(ctx context.Context, m uhttpdInstanceModel, diags *diagsink) map[string]any {
+	out := map[string]any{}
+	putList(ctx, out, "listen_http", m.ListenHTTP, diags.d)
+	putList(ctx, out, "listen_https", m.ListenHTTPS, diags.d)
+	putStr(out, "home", m.Home)
+	putStr(out, "cert", m.Cert)
+	putStr(out, "key", m.Key)
+	putStr(out, "cgi_prefix", m.CGIPrefix)
+	putList(ctx, out, "lua_prefix", m.LuaPrefix, diags.d)
+	putList(ctx, out, "ucode_prefix", m.UcodePrefix, diags.d)
+	putStr(out, "max_requests", m.MaxRequests)
+	putStr(out, "max_connections", m.MaxConnections)
+	putStr(out, "script_timeout", m.ScriptTimeout)
+	putStr(out, "network_timeout", m.NetworkTimeout)
+	putStr(out, "http_keepalive", m.HTTPKeepalive)
+	putStr(out, "tcp_keepalive", m.TCPKeepalive)
+	putList(ctx, out, "index_page", m.IndexPage, diags.d)
+	putStr(out, "error_page", m.ErrorPage)
+	putBool(out, "no_dirlists", m.NoDirlists)
+	putBool(out, "no_symlinks", m.NoSymlinks)
+	putBool(out, "rfc1918_filter", m.RFC1918Filter)
+	return out
+}
+
+func (r *uhttpdInstanceResource) read(ctx context.Context, obj map[string]any, m *uhttpdInstanceModel, diags *diagsink) {
+	m.ID = strVal(obj, "id")
+	m.Managed = boolVal(obj, "managed")
+	m.ListenHTTP = diags.list(listVal(ctx, obj, "listen_http"))
+	m.ListenHTTPS = diags.list(listVal(ctx, obj, "listen_https"))
+	m.Home = strVal(obj, "home")
+	m.Cert = strVal(obj, "cert")
+	m.Key = strVal(obj, "key")
+	m.CGIPrefix = strVal(obj, "cgi_prefix")
+	m.LuaPrefix = diags.list(listVal(ctx, obj, "lua_prefix"))
+	m.UcodePrefix = diags.list(listVal(ctx, obj, "ucode_prefix"))
+	m.MaxRequests = strVal(obj, "max_requests")
+	m.MaxConnections = strVal(obj, "max_connections")
+	m.ScriptTimeout = strVal(obj, "script_timeout")
+	m.NetworkTimeout = strVal(obj, "network_timeout")
+	m.HTTPKeepalive = strVal(obj, "http_keepalive")
+	m.TCPKeepalive = strVal(obj, "tcp_keepalive")
+	m.IndexPage = diags.list(listVal(ctx, obj, "index_page"))
+	m.ErrorPage = strVal(obj, "error_page")
+	m.NoDirlists = boolVal(obj, "no_dirlists")
+	m.NoSymlinks = boolVal(obj, "no_symlinks")
+	m.RFC1918Filter = boolVal(obj, "rfc1918_filter")
+}
+
+func (r *uhttpdInstanceResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
+	var plan uhttpdInstanceModel
+	resp.Diagnostics.Append(req.Plan.Get(ctx, &plan)...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+	ds := newDiagsink(&resp.Diagnostics)
+	body := r.body(ctx, plan, ds)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+	obj, err := r.client.Post(ctx, "/"+uhttpdInstanceCollection, body)
+	if err != nil {
+		resp.Diagnostics.AddError("Error creating uhttpd instance", err.Error())
+		return
+	}
+	r.read(ctx, obj, &plan, ds)
+	resp.Diagnostics.Append(resp.State.Set(ctx, &plan)...)
+}
+
+func (r *uhttpdInstanceResource) Read(ctx context.Context, req resource.ReadRequest, resp *resource.ReadResponse) {
+	var state uhttpdInstanceModel
+	resp.Diagnostics.Append(req.State.Get(ctx, &state)...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+	obj, found, err := r.client.GetObject(ctx, "/"+uhttpdInstanceCollection+"/"+state.ID.ValueString())
+	if err != nil {
+		resp.Diagnostics.AddError("Error reading uhttpd instance", err.Error())
+		return
+	}
+	if !found {
+		resp.State.RemoveResource(ctx)
+		return
+	}
+	ds := newDiagsink(&resp.Diagnostics)
+	r.read(ctx, obj, &state, ds)
+	resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)
+}
+
+func (r *uhttpdInstanceResource) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
+	var plan uhttpdInstanceModel
+	resp.Diagnostics.Append(req.Plan.Get(ctx, &plan)...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+	ds := newDiagsink(&resp.Diagnostics)
+	body := r.body(ctx, plan, ds)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+	obj, err := r.client.Put(ctx, "/"+uhttpdInstanceCollection+"/"+plan.ID.ValueString(), body)
+	if err != nil {
+		resp.Diagnostics.AddError("Error updating uhttpd instance", err.Error())
+		return
+	}
+	r.read(ctx, obj, &plan, ds)
+	resp.Diagnostics.Append(resp.State.Set(ctx, &plan)...)
+}
+
+func (r *uhttpdInstanceResource) Delete(ctx context.Context, req resource.DeleteRequest, resp *resource.DeleteResponse) {
+	var state uhttpdInstanceModel
+	resp.Diagnostics.Append(req.State.Get(ctx, &state)...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+	if err := r.client.Delete(ctx, "/"+uhttpdInstanceCollection+"/"+state.ID.ValueString()); err != nil {
+		resp.Diagnostics.AddError("Error deleting uhttpd instance", err.Error())
+	}
+}
+
+func (r *uhttpdInstanceResource) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
+	importByID(ctx, r.client, uhttpdInstanceCollection, "uhttpd instance", req, resp)
+}

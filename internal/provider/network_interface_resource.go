@@ -38,6 +38,14 @@ type networkInterfaceModel struct {
 	IP6Assign types.String `tfsdk:"ip6assign"`
 	MTU       types.String `tfsdk:"mtu"`
 	Auto      types.Bool   `tfsdk:"auto"`
+	// WireGuard fields (proto = "wireguard"); present in the response only then.
+	PrivateKey    types.String `tfsdk:"private_key"`
+	HasPrivateKey types.Bool   `tfsdk:"has_private_key"`
+	ListenPort    types.String `tfsdk:"listen_port"`
+	Addresses     types.List   `tfsdk:"addresses"`
+	Nohostroute   types.Bool   `tfsdk:"nohostroute"`
+	IP4Table      types.String `tfsdk:"ip4table"`
+	IP6Table      types.String `tfsdk:"ip6table"`
 }
 
 func (r *networkInterfaceResource) Metadata(_ context.Context, req resource.MetadataRequest, resp *resource.MetadataResponse) {
@@ -62,7 +70,7 @@ func (r *networkInterfaceResource) Schema(_ context.Context, _ resource.SchemaRe
 			},
 			"proto": schema.StringAttribute{
 				Required:    true,
-				Description: "Protocol: static, dhcp, dhcpv6, pppoe, none, ppp, or wwan.",
+				Description: "Protocol: static, dhcp, dhcpv6, pppoe, none, ppp, wwan, or wireguard.",
 			},
 			"ipaddr":    optionalComputedString("IPv4 address (required when proto is static)."),
 			"netmask":   optionalComputedString("IPv4 netmask."),
@@ -71,6 +79,20 @@ func (r *networkInterfaceResource) Schema(_ context.Context, _ resource.SchemaRe
 			"ip6assign": optionalComputedString("IPv6 prefix assignment length."),
 			"mtu":       optionalComputedString("Interface MTU."),
 			"auto":      optionalComputedBool("Bring the interface up automatically. Defaults to true."),
+			"private_key": schema.StringAttribute{
+				Optional:    true,
+				Sensitive:   true,
+				Description: "WireGuard private key (proto = wireguard). Write-only: the API never returns it, so it is not refreshed from the router.",
+			},
+			"has_private_key": schema.BoolAttribute{
+				Computed:    true,
+				Description: "Whether a WireGuard private key is configured (the key itself is never returned).",
+			},
+			"listen_port": optionalComputedString("WireGuard UDP listen port (proto = wireguard)."),
+			"addresses":   optionalComputedStringList("WireGuard interface addresses as CIDRs (proto = wireguard)."),
+			"nohostroute": optionalComputedBool("WireGuard: skip adding host routes for peers. Defaults to false."),
+			"ip4table":    optionalComputedString("WireGuard IPv4 routing table (proto = wireguard)."),
+			"ip6table":    optionalComputedString("WireGuard IPv6 routing table (proto = wireguard)."),
 		},
 	}
 }
@@ -86,6 +108,12 @@ func (r *networkInterfaceResource) body(ctx context.Context, m networkInterfaceM
 	putStr(out, "ip6assign", m.IP6Assign)
 	putStr(out, "mtu", m.MTU)
 	putBool(out, "auto", m.Auto)
+	putStr(out, "private_key", m.PrivateKey)
+	putStr(out, "listen_port", m.ListenPort)
+	putList(ctx, out, "addresses", m.Addresses, diags.d)
+	putBool(out, "nohostroute", m.Nohostroute)
+	putStr(out, "ip4table", m.IP4Table)
+	putStr(out, "ip6table", m.IP6Table)
 	return out
 }
 
@@ -101,6 +129,17 @@ func (r *networkInterfaceResource) read(ctx context.Context, obj map[string]any,
 	m.IP6Assign = strVal(obj, "ip6assign")
 	m.MTU = strVal(obj, "mtu")
 	m.Auto = boolVal(obj, "auto")
+	// private_key is write-only: leave m.PrivateKey untouched (preserve planned value).
+	m.ListenPort = strVal(obj, "listen_port")
+	m.Addresses = diags.list(listVal(ctx, obj, "addresses"))
+	m.Nohostroute = boolVal(obj, "nohostroute")
+	m.IP4Table = strVal(obj, "ip4table")
+	m.IP6Table = strVal(obj, "ip6table")
+	hasKey := boolVal(obj, "has_private_key")
+	if hasKey.IsNull() {
+		hasKey = types.BoolValue(false)
+	}
+	m.HasPrivateKey = hasKey
 }
 
 func (r *networkInterfaceResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
