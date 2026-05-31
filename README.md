@@ -38,25 +38,31 @@ provider "uapi" {
 
 ## Resources
 
-| Resource                   | uci backing            | Notes                                               |
-|----------------------------|------------------------|-----------------------------------------------------|
-| `uapi_firewall_rule`       | `firewall.rule`        | `target`, nested `match` block.                     |
-| `uapi_firewall_zone`       | `firewall.zone`        | Input/output/forward policies, masquerading.        |
-| `uapi_firewall_redirect`   | `firewall.redirect`    | Port forwards (DNAT/SNAT).                           |
-| `uapi_network_interface`   | `network.interface`    | See the management-link caution below.              |
-| `uapi_network_device`      | `network.device`       | Bridges, VLANs, etc.                                |
-| `uapi_wireless_device`     | `wireless.wifi-device` | Radios.                                             |
-| `uapi_wireless_interface`  | `wireless.wifi-iface`  | SSIDs. `key` is write-only; `has_key` is computed.  |
-| `uapi_dhcp_host`           | `dhcp.host`            | Static leases.                                      |
-| `uapi_system`              | `system.system`        | Singleton; see below.                               |
+The provider covers the full curated uapi surface (no `/raw`). The per-resource pages under `docs/`
+(and on the Terraform Registry) document every attribute; the groups below are a map.
+
+- **Firewall:** `uapi_firewall_rule`, `uapi_firewall_zone`, `uapi_firewall_redirect`,
+  `uapi_firewall_forwarding`, `uapi_firewall_defaults` (singleton).
+- **Network:** `uapi_network_interface` (incl. WireGuard: write-only `private_key`),
+  `uapi_network_device`, `uapi_network_route`, `uapi_network_rule`, `uapi_network_bridge_vlan`,
+  `uapi_network_wireguard_peer` (write-only `preshared_key`).
+- **Wireless:** `uapi_wireless_device`, `uapi_wireless_interface` (write-only `key`).
+- **DHCP/DNS:** `uapi_dhcp_host`, `uapi_dhcp_server`, `uapi_dhcp_dnsmasq` (singleton),
+  `uapi_dhcp_odhcpd` (singleton), `uapi_unbound_server` (singleton).
+- **System:** `uapi_system` (singleton), `uapi_system_timeserver`, `uapi_dropbear_instance`,
+  `uapi_uhttpd_instance`, `uapi_uhttpd_cert`, `uapi_lldpd_config` (singleton).
+- **SNMP:** `uapi_snmpd_system` (singleton), `uapi_snmpd_com2sec`, `uapi_snmpd_group`,
+  `uapi_snmpd_access`, `uapi_snmpd_agent`.
+- **Traffic/metrics:** `uapi_sqm_queue`, `uapi_vnstat_interface`, `uapi_vnstat_config` (singleton),
+  `uapi_prometheus_node_exporter_lua_config` (singleton).
+- **Packages:** `uapi_package` (apk install/remove), `uapi_package_feed`. These have no update
+  endpoint, so changing an input forces replacement.
 
 ## Data sources
 
-One lookup-by-`id` data source per resource type (`uapi_firewall_rule`, `uapi_firewall_zone`, ...,
-`uapi_dhcp_host`), plus:
+Every resource type has a matching lookup data source (by `id`, or no argument for singletons), plus:
 
-- `uapi_system`: the global system settings (no `id`).
-- `uapi_dhcp_leases`: the current active DHCP leases reported at runtime (read-only).
+- `uapi_dhcp_leases`: the current active DHCP leases reported at runtime (read-only, list).
 
 ## Behaviour notes
 

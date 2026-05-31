@@ -1,0 +1,158 @@
+package provider
+
+import (
+	"context"
+
+	"github.com/hashicorp/terraform-plugin-framework/resource"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
+	"github.com/hashicorp/terraform-plugin-framework/types"
+
+	"github.com/raspbeguy/terraform-provider-uapi/internal/client"
+)
+
+const systemTimeserverCollection = "system/timeservers"
+
+var (
+	_ resource.Resource                = &systemTimeserverResource{}
+	_ resource.ResourceWithConfigure   = &systemTimeserverResource{}
+	_ resource.ResourceWithImportState = &systemTimeserverResource{}
+)
+
+type systemTimeserverResource struct {
+	client *client.Client
+}
+
+func NewSystemTimeserverResource() resource.Resource {
+	return &systemTimeserverResource{}
+}
+
+type systemTimeserverModel struct {
+	ID           types.String `tfsdk:"id"`
+	Managed      types.Bool   `tfsdk:"managed"`
+	Enabled      types.Bool   `tfsdk:"enabled"`
+	EnableServer types.Bool   `tfsdk:"enable_server"`
+	Interface    types.String `tfsdk:"interface"`
+	Server       types.List   `tfsdk:"server"`
+	UseDHCP      types.Bool   `tfsdk:"use_dhcp"`
+}
+
+func (r *systemTimeserverResource) Metadata(_ context.Context, req resource.MetadataRequest, resp *resource.MetadataResponse) {
+	resp.TypeName = req.ProviderTypeName + "_system_timeserver"
+}
+
+func (r *systemTimeserverResource) Configure(_ context.Context, req resource.ConfigureRequest, resp *resource.ConfigureResponse) {
+	r.client = clientFromResourceConfigure(req, resp)
+}
+
+func (r *systemTimeserverResource) Schema(_ context.Context, _ resource.SchemaRequest, resp *resource.SchemaResponse) {
+	resp.Schema = schema.Schema{
+		Description: "An NTP timeserver configuration (uci system.timeserver).",
+		Attributes: map[string]schema.Attribute{
+			"id":            computedIDAttribute(),
+			"managed":       managedAttribute(),
+			"enabled":       optionalComputedBool("Whether the NTP client is enabled. Defaults to true."),
+			"enable_server": optionalComputedBool("Whether to act as an NTP server for the local network. Defaults to false."),
+			"interface": schema.StringAttribute{
+				Optional:    true,
+				Description: "Network interface the NTP server binds to.",
+			},
+			"server":   optionalComputedStringList("Upstream NTP server hostnames. At least one is required when use_dhcp is false."),
+			"use_dhcp": optionalComputedBool("Whether to use NTP servers advertised over DHCP. Defaults to true."),
+		},
+	}
+}
+
+func (r *systemTimeserverResource) body(ctx context.Context, m systemTimeserverModel, diags *diagsink) map[string]any {
+	out := map[string]any{}
+	putBool(out, "enabled", m.Enabled)
+	putBool(out, "enable_server", m.EnableServer)
+	putStr(out, "interface", m.Interface)
+	putList(ctx, out, "server", m.Server, diags.d)
+	putBool(out, "use_dhcp", m.UseDHCP)
+	return out
+}
+
+func (r *systemTimeserverResource) read(ctx context.Context, obj map[string]any, m *systemTimeserverModel, diags *diagsink) {
+	m.ID = strVal(obj, "id")
+	m.Managed = boolVal(obj, "managed")
+	m.Enabled = boolVal(obj, "enabled")
+	m.EnableServer = boolVal(obj, "enable_server")
+	m.Interface = strVal(obj, "interface")
+	m.Server = diags.list(listVal(ctx, obj, "server"))
+	m.UseDHCP = boolVal(obj, "use_dhcp")
+}
+
+func (r *systemTimeserverResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
+	var plan systemTimeserverModel
+	resp.Diagnostics.Append(req.Plan.Get(ctx, &plan)...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+	ds := newDiagsink(&resp.Diagnostics)
+	body := r.body(ctx, plan, ds)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+	obj, err := r.client.Post(ctx, "/"+systemTimeserverCollection, body)
+	if err != nil {
+		resp.Diagnostics.AddError("Error creating system timeserver", err.Error())
+		return
+	}
+	r.read(ctx, obj, &plan, ds)
+	resp.Diagnostics.Append(resp.State.Set(ctx, &plan)...)
+}
+
+func (r *systemTimeserverResource) Read(ctx context.Context, req resource.ReadRequest, resp *resource.ReadResponse) {
+	var state systemTimeserverModel
+	resp.Diagnostics.Append(req.State.Get(ctx, &state)...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+	obj, found, err := r.client.GetObject(ctx, "/"+systemTimeserverCollection+"/"+state.ID.ValueString())
+	if err != nil {
+		resp.Diagnostics.AddError("Error reading system timeserver", err.Error())
+		return
+	}
+	if !found {
+		resp.State.RemoveResource(ctx)
+		return
+	}
+	ds := newDiagsink(&resp.Diagnostics)
+	r.read(ctx, obj, &state, ds)
+	resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)
+}
+
+func (r *systemTimeserverResource) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
+	var plan systemTimeserverModel
+	resp.Diagnostics.Append(req.Plan.Get(ctx, &plan)...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+	ds := newDiagsink(&resp.Diagnostics)
+	body := r.body(ctx, plan, ds)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+	obj, err := r.client.Put(ctx, "/"+systemTimeserverCollection+"/"+plan.ID.ValueString(), body)
+	if err != nil {
+		resp.Diagnostics.AddError("Error updating system timeserver", err.Error())
+		return
+	}
+	r.read(ctx, obj, &plan, ds)
+	resp.Diagnostics.Append(resp.State.Set(ctx, &plan)...)
+}
+
+func (r *systemTimeserverResource) Delete(ctx context.Context, req resource.DeleteRequest, resp *resource.DeleteResponse) {
+	var state systemTimeserverModel
+	resp.Diagnostics.Append(req.State.Get(ctx, &state)...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+	if err := r.client.Delete(ctx, "/"+systemTimeserverCollection+"/"+state.ID.ValueString()); err != nil {
+		resp.Diagnostics.AddError("Error deleting system timeserver", err.Error())
+	}
+}
+
+func (r *systemTimeserverResource) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
+	importByID(ctx, r.client, systemTimeserverCollection, "system timeserver", req, resp)
+}

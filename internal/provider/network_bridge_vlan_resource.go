@@ -1,0 +1,153 @@
+package provider
+
+import (
+	"context"
+
+	"github.com/hashicorp/terraform-plugin-framework/resource"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
+	"github.com/hashicorp/terraform-plugin-framework/types"
+
+	"github.com/raspbeguy/terraform-provider-uapi/internal/client"
+)
+
+const networkBridgeVlanCollection = "network/bridge_vlans"
+
+var (
+	_ resource.Resource                = &networkBridgeVlanResource{}
+	_ resource.ResourceWithConfigure   = &networkBridgeVlanResource{}
+	_ resource.ResourceWithImportState = &networkBridgeVlanResource{}
+)
+
+type networkBridgeVlanResource struct {
+	client *client.Client
+}
+
+func NewNetworkBridgeVlanResource() resource.Resource {
+	return &networkBridgeVlanResource{}
+}
+
+type networkBridgeVlanModel struct {
+	ID      types.String `tfsdk:"id"`
+	Managed types.Bool   `tfsdk:"managed"`
+	Device  types.String `tfsdk:"device"`
+	Vlan    types.String `tfsdk:"vlan"`
+	Ports   types.List   `tfsdk:"ports"`
+}
+
+func (r *networkBridgeVlanResource) Metadata(_ context.Context, req resource.MetadataRequest, resp *resource.MetadataResponse) {
+	resp.TypeName = req.ProviderTypeName + "_network_bridge_vlan"
+}
+
+func (r *networkBridgeVlanResource) Configure(_ context.Context, req resource.ConfigureRequest, resp *resource.ConfigureResponse) {
+	r.client = clientFromResourceConfigure(req, resp)
+}
+
+func (r *networkBridgeVlanResource) Schema(_ context.Context, _ resource.SchemaRequest, resp *resource.SchemaResponse) {
+	resp.Schema = schema.Schema{
+		Description: "A bridge VLAN (uci network.bridge-vlan).",
+		Attributes: map[string]schema.Attribute{
+			"id":      computedIDAttribute(),
+			"managed": managedAttribute(),
+			"device": schema.StringAttribute{
+				Required:    true,
+				Description: "Bridge device name this VLAN belongs to. Must reference an existing bridge device.",
+			},
+			"vlan": schema.StringAttribute{
+				Required:    true,
+				Description: "VLAN id (1-4094).",
+			},
+			"ports": optionalComputedStringList("Member ports, each as <name>[:t|:u|:*] (e.g. eth0:t)."),
+		},
+	}
+}
+
+func (r *networkBridgeVlanResource) body(ctx context.Context, m networkBridgeVlanModel, diags *diagsink) map[string]any {
+	out := map[string]any{}
+	putStr(out, "device", m.Device)
+	putStr(out, "vlan", m.Vlan)
+	putList(ctx, out, "ports", m.Ports, diags.d)
+	return out
+}
+
+func (r *networkBridgeVlanResource) read(ctx context.Context, obj map[string]any, m *networkBridgeVlanModel, diags *diagsink) {
+	m.ID = strVal(obj, "id")
+	m.Managed = boolVal(obj, "managed")
+	m.Device = strVal(obj, "device")
+	m.Vlan = strVal(obj, "vlan")
+	m.Ports = diags.list(listVal(ctx, obj, "ports"))
+}
+
+func (r *networkBridgeVlanResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
+	var plan networkBridgeVlanModel
+	resp.Diagnostics.Append(req.Plan.Get(ctx, &plan)...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+	ds := newDiagsink(&resp.Diagnostics)
+	body := r.body(ctx, plan, ds)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+	obj, err := r.client.Post(ctx, "/"+networkBridgeVlanCollection, body)
+	if err != nil {
+		resp.Diagnostics.AddError("Error creating network bridge VLAN", err.Error())
+		return
+	}
+	r.read(ctx, obj, &plan, ds)
+	resp.Diagnostics.Append(resp.State.Set(ctx, &plan)...)
+}
+
+func (r *networkBridgeVlanResource) Read(ctx context.Context, req resource.ReadRequest, resp *resource.ReadResponse) {
+	var state networkBridgeVlanModel
+	resp.Diagnostics.Append(req.State.Get(ctx, &state)...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+	obj, found, err := r.client.GetObject(ctx, "/"+networkBridgeVlanCollection+"/"+state.ID.ValueString())
+	if err != nil {
+		resp.Diagnostics.AddError("Error reading network bridge VLAN", err.Error())
+		return
+	}
+	if !found {
+		resp.State.RemoveResource(ctx)
+		return
+	}
+	ds := newDiagsink(&resp.Diagnostics)
+	r.read(ctx, obj, &state, ds)
+	resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)
+}
+
+func (r *networkBridgeVlanResource) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
+	var plan networkBridgeVlanModel
+	resp.Diagnostics.Append(req.Plan.Get(ctx, &plan)...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+	ds := newDiagsink(&resp.Diagnostics)
+	body := r.body(ctx, plan, ds)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+	obj, err := r.client.Put(ctx, "/"+networkBridgeVlanCollection+"/"+plan.ID.ValueString(), body)
+	if err != nil {
+		resp.Diagnostics.AddError("Error updating network bridge VLAN", err.Error())
+		return
+	}
+	r.read(ctx, obj, &plan, ds)
+	resp.Diagnostics.Append(resp.State.Set(ctx, &plan)...)
+}
+
+func (r *networkBridgeVlanResource) Delete(ctx context.Context, req resource.DeleteRequest, resp *resource.DeleteResponse) {
+	var state networkBridgeVlanModel
+	resp.Diagnostics.Append(req.State.Get(ctx, &state)...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+	if err := r.client.Delete(ctx, "/"+networkBridgeVlanCollection+"/"+state.ID.ValueString()); err != nil {
+		resp.Diagnostics.AddError("Error deleting network bridge VLAN", err.Error())
+	}
+}
+
+func (r *networkBridgeVlanResource) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
+	importByID(ctx, r.client, networkBridgeVlanCollection, "network bridge VLAN", req, resp)
+}

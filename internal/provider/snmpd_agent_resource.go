@@ -1,0 +1,139 @@
+package provider
+
+import (
+	"context"
+
+	"github.com/hashicorp/terraform-plugin-framework/resource"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
+	"github.com/hashicorp/terraform-plugin-framework/types"
+
+	"github.com/raspbeguy/terraform-provider-uapi/internal/client"
+)
+
+const snmpdAgentCollection = "snmpd/agents"
+
+var (
+	_ resource.Resource                = &snmpdAgentResource{}
+	_ resource.ResourceWithConfigure   = &snmpdAgentResource{}
+	_ resource.ResourceWithImportState = &snmpdAgentResource{}
+)
+
+type snmpdAgentResource struct {
+	client *client.Client
+}
+
+func NewSnmpdAgentResource() resource.Resource {
+	return &snmpdAgentResource{}
+}
+
+type snmpdAgentModel struct {
+	ID           types.String `tfsdk:"id"`
+	Managed      types.Bool   `tfsdk:"managed"`
+	AgentAddress types.List   `tfsdk:"agentaddress"`
+}
+
+func (r *snmpdAgentResource) Metadata(_ context.Context, req resource.MetadataRequest, resp *resource.MetadataResponse) {
+	resp.TypeName = req.ProviderTypeName + "_snmpd_agent"
+}
+
+func (r *snmpdAgentResource) Configure(_ context.Context, req resource.ConfigureRequest, resp *resource.ConfigureResponse) {
+	r.client = clientFromResourceConfigure(req, resp)
+}
+
+func (r *snmpdAgentResource) Schema(_ context.Context, _ resource.SchemaRequest, resp *resource.SchemaResponse) {
+	resp.Schema = schema.Schema{
+		Description: "An SNMP agent listener configuration (uci snmpd.agent).",
+		Attributes: map[string]schema.Attribute{
+			"id":           computedIDAttribute(),
+			"managed":      managedAttribute(),
+			"agentaddress": optionalComputedStringList("Addresses the SNMP agent listens on (e.g. UDP:161, udp6:161)."),
+		},
+	}
+}
+
+func (r *snmpdAgentResource) body(ctx context.Context, m snmpdAgentModel, diags *diagsink) map[string]any {
+	out := map[string]any{}
+	putList(ctx, out, "agentaddress", m.AgentAddress, diags.d)
+	return out
+}
+
+func (r *snmpdAgentResource) read(ctx context.Context, obj map[string]any, m *snmpdAgentModel, diags *diagsink) {
+	m.ID = strVal(obj, "id")
+	m.Managed = boolVal(obj, "managed")
+	m.AgentAddress = diags.list(listVal(ctx, obj, "agentaddress"))
+}
+
+func (r *snmpdAgentResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
+	var plan snmpdAgentModel
+	resp.Diagnostics.Append(req.Plan.Get(ctx, &plan)...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+	ds := newDiagsink(&resp.Diagnostics)
+	body := r.body(ctx, plan, ds)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+	obj, err := r.client.Post(ctx, "/"+snmpdAgentCollection, body)
+	if err != nil {
+		resp.Diagnostics.AddError("Error creating snmpd agent", err.Error())
+		return
+	}
+	r.read(ctx, obj, &plan, ds)
+	resp.Diagnostics.Append(resp.State.Set(ctx, &plan)...)
+}
+
+func (r *snmpdAgentResource) Read(ctx context.Context, req resource.ReadRequest, resp *resource.ReadResponse) {
+	var state snmpdAgentModel
+	resp.Diagnostics.Append(req.State.Get(ctx, &state)...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+	obj, found, err := r.client.GetObject(ctx, "/"+snmpdAgentCollection+"/"+state.ID.ValueString())
+	if err != nil {
+		resp.Diagnostics.AddError("Error reading snmpd agent", err.Error())
+		return
+	}
+	if !found {
+		resp.State.RemoveResource(ctx)
+		return
+	}
+	ds := newDiagsink(&resp.Diagnostics)
+	r.read(ctx, obj, &state, ds)
+	resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)
+}
+
+func (r *snmpdAgentResource) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
+	var plan snmpdAgentModel
+	resp.Diagnostics.Append(req.Plan.Get(ctx, &plan)...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+	ds := newDiagsink(&resp.Diagnostics)
+	body := r.body(ctx, plan, ds)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+	obj, err := r.client.Put(ctx, "/"+snmpdAgentCollection+"/"+plan.ID.ValueString(), body)
+	if err != nil {
+		resp.Diagnostics.AddError("Error updating snmpd agent", err.Error())
+		return
+	}
+	r.read(ctx, obj, &plan, ds)
+	resp.Diagnostics.Append(resp.State.Set(ctx, &plan)...)
+}
+
+func (r *snmpdAgentResource) Delete(ctx context.Context, req resource.DeleteRequest, resp *resource.DeleteResponse) {
+	var state snmpdAgentModel
+	resp.Diagnostics.Append(req.State.Get(ctx, &state)...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+	if err := r.client.Delete(ctx, "/"+snmpdAgentCollection+"/"+state.ID.ValueString()); err != nil {
+		resp.Diagnostics.AddError("Error deleting snmpd agent", err.Error())
+	}
+}
+
+func (r *snmpdAgentResource) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
+	importByID(ctx, r.client, snmpdAgentCollection, "snmpd agent", req, resp)
+}

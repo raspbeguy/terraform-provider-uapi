@@ -1,0 +1,60 @@
+package provider
+
+import (
+	"context"
+
+	"github.com/hashicorp/terraform-plugin-framework/datasource"
+	dsschema "github.com/hashicorp/terraform-plugin-framework/datasource/schema"
+
+	"github.com/raspbeguy/terraform-provider-uapi/internal/client"
+)
+
+var (
+	_ datasource.DataSource              = &firewallForwardingDataSource{}
+	_ datasource.DataSourceWithConfigure = &firewallForwardingDataSource{}
+)
+
+type firewallForwardingDataSource struct{ client *client.Client }
+
+func NewFirewallForwardingDataSource() datasource.DataSource { return &firewallForwardingDataSource{} }
+
+func (d *firewallForwardingDataSource) Metadata(_ context.Context, req datasource.MetadataRequest, resp *datasource.MetadataResponse) {
+	resp.TypeName = req.ProviderTypeName + "_firewall_forwarding"
+}
+
+func (d *firewallForwardingDataSource) Configure(_ context.Context, req datasource.ConfigureRequest, resp *datasource.ConfigureResponse) {
+	d.client = clientFromDataSourceConfigure(req, resp)
+}
+
+func (d *firewallForwardingDataSource) Schema(_ context.Context, _ datasource.SchemaRequest, resp *datasource.SchemaResponse) {
+	resp.Schema = dsschema.Schema{
+		Description: "Look up a firewall forwarding by id.",
+		Attributes: map[string]dsschema.Attribute{
+			"id":      dsIDAttribute(),
+			"managed": dsManagedAttribute(),
+			"src":     dsComputedString("Source zone name."),
+			"dest":    dsComputedString("Destination zone name."),
+			"family":  dsComputedString("Address family: any, ipv4, or ipv6."),
+			"enabled": dsComputedBool("Whether the forwarding is active."),
+		},
+	}
+}
+
+func (d *firewallForwardingDataSource) Read(ctx context.Context, req datasource.ReadRequest, resp *datasource.ReadResponse) {
+	var m firewallForwardingModel
+	resp.Diagnostics.Append(req.Config.Get(ctx, &m)...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+	obj, found, err := d.client.GetObject(ctx, "/"+firewallForwardingCollection+"/"+m.ID.ValueString())
+	if err != nil {
+		resp.Diagnostics.AddError("Error reading firewall forwarding", err.Error())
+		return
+	}
+	if !found {
+		resp.Diagnostics.AddError("Firewall forwarding not found", "No firewall forwarding with id "+m.ID.ValueString())
+		return
+	}
+	(&firewallForwardingResource{}).read(ctx, obj, &m)
+	resp.Diagnostics.Append(resp.State.Set(ctx, &m)...)
+}

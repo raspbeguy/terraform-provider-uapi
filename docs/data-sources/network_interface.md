@@ -27,13 +27,20 @@ data "uapi_network_interface" "lan" {
 
 ### Read-Only
 
+- `addresses` (List of String) WireGuard interface addresses (CIDRs).
 - `auto` (Boolean) Whether the interface is brought up automatically.
 - `device` (String) Underlying device this interface binds to.
 - `dns` (List of String) DNS servers.
 - `gateway` (String) Default gateway.
+- `has_private_key` (Boolean) Whether a WireGuard private key is configured.
+- `ip4table` (String) WireGuard IPv4 routing table.
 - `ip6assign` (String) IPv6 prefix assignment length.
+- `ip6table` (String) WireGuard IPv6 routing table.
 - `ipaddr` (String) IPv4 address.
+- `listen_port` (String) WireGuard UDP listen port.
 - `managed` (Boolean) Whether the underlying uci section is uapi-managed.
 - `mtu` (String) Interface MTU.
 - `netmask` (String) IPv4 netmask.
+- `nohostroute` (Boolean) WireGuard: whether host routes for peers are skipped.
+- `private_key` (String, Sensitive) Always null; the WireGuard private key is never returned.
 - `proto` (String) Protocol: static, dhcp, dhcpv6, pppoe, none, ppp, or wwan.

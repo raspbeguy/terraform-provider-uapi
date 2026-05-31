@@ -1,0 +1,59 @@
+package provider
+
+import (
+	"context"
+
+	"github.com/hashicorp/terraform-plugin-framework/datasource"
+	dsschema "github.com/hashicorp/terraform-plugin-framework/datasource/schema"
+
+	"github.com/raspbeguy/terraform-provider-uapi/internal/client"
+)
+
+var (
+	_ datasource.DataSource              = &snmpdCom2secDataSource{}
+	_ datasource.DataSourceWithConfigure = &snmpdCom2secDataSource{}
+)
+
+type snmpdCom2secDataSource struct{ client *client.Client }
+
+func NewSnmpdCom2secDataSource() datasource.DataSource { return &snmpdCom2secDataSource{} }
+
+func (d *snmpdCom2secDataSource) Metadata(_ context.Context, req datasource.MetadataRequest, resp *datasource.MetadataResponse) {
+	resp.TypeName = req.ProviderTypeName + "_snmpd_com2sec"
+}
+
+func (d *snmpdCom2secDataSource) Configure(_ context.Context, req datasource.ConfigureRequest, resp *datasource.ConfigureResponse) {
+	d.client = clientFromDataSourceConfigure(req, resp)
+}
+
+func (d *snmpdCom2secDataSource) Schema(_ context.Context, _ datasource.SchemaRequest, resp *datasource.SchemaResponse) {
+	resp.Schema = dsschema.Schema{
+		Description: "Look up an SNMP community-to-security-name mapping by id.",
+		Attributes: map[string]dsschema.Attribute{
+			"id":        dsIDAttribute(),
+			"managed":   dsManagedAttribute(),
+			"secname":   dsComputedString("Security name the community maps to."),
+			"source":    dsComputedString("Source network range or 'default'."),
+			"community": dsComputedString("SNMP community string."),
+		},
+	}
+}
+
+func (d *snmpdCom2secDataSource) Read(ctx context.Context, req datasource.ReadRequest, resp *datasource.ReadResponse) {
+	var m snmpdCom2secModel
+	resp.Diagnostics.Append(req.Config.Get(ctx, &m)...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+	obj, found, err := d.client.GetObject(ctx, "/"+snmpdCom2secCollection+"/"+m.ID.ValueString())
+	if err != nil {
+		resp.Diagnostics.AddError("Error reading snmpd com2sec", err.Error())
+		return
+	}
+	if !found {
+		resp.Diagnostics.AddError("Snmpd com2sec not found", "No snmpd com2sec with id "+m.ID.ValueString())
+		return
+	}
+	(&snmpdCom2secResource{}).read(ctx, obj, &m)
+	resp.Diagnostics.Append(resp.State.Set(ctx, &m)...)
+}
