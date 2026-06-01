@@ -5,6 +5,7 @@ import (
 
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	dsschema "github.com/hashicorp/terraform-plugin-framework/datasource/schema"
+	"github.com/hashicorp/terraform-plugin-framework/types"
 
 	"github.com/raspbeguy/terraform-provider-uapi/internal/client"
 )
@@ -34,6 +35,7 @@ func (d *prometheusNodeExporterLuaConfigDataSource) Schema(_ context.Context, _ 
 		Attributes: map[string]dsschema.Attribute{
 			"id":               dsComputedString("Stable id of the prometheus-node-exporter-lua config section."),
 			"managed":          dsManagedAttribute(),
+			"etag":             dsComputedString("Opaque ETag of the resource's current state."),
 			"listen_ipv6":      dsComputedBool("Whether the exporter listens on IPv6."),
 			"listen_interface": dsComputedString("Network interface the exporter is bound to."),
 			"listen_port":      dsComputedString("TCP port the exporter listens on."),
@@ -59,7 +61,7 @@ func (d *prometheusNodeExporterLuaConfigDataSource) Schema(_ context.Context, _ 
 }
 
 func (d *prometheusNodeExporterLuaConfigDataSource) Read(ctx context.Context, _ datasource.ReadRequest, resp *datasource.ReadResponse) {
-	obj, found, err := d.client.GetObject(ctx, prometheusNodeExporterLuaConfigPath)
+	obj, etag, found, err := d.client.GetObject(ctx, prometheusNodeExporterLuaConfigPath)
 	if err != nil {
 		resp.Diagnostics.AddError("Error reading prometheus-node-exporter-lua settings", err.Error())
 		return
@@ -70,5 +72,6 @@ func (d *prometheusNodeExporterLuaConfigDataSource) Read(ctx context.Context, _ 
 	}
 	var m prometheusNodeExporterLuaConfigModel
 	(&prometheusNodeExporterLuaConfigResource{}).read(ctx, obj, &m)
+	m.ETag = types.StringValue(etag)
 	resp.Diagnostics.Append(resp.State.Set(ctx, &m)...)
 }

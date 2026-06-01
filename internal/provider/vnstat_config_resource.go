@@ -30,6 +30,7 @@ func NewVnstatConfigResource() resource.Resource {
 type vnstatConfigModel struct {
 	ID                 types.String `tfsdk:"id"`
 	Managed            types.Bool   `tfsdk:"managed"`
+	ETag               types.String `tfsdk:"etag"`
 	DatabaseDir        types.String `tfsdk:"database_dir"`
 	Interface5MinHours types.String `tfsdk:"interface_5min_hours"`
 	MonthRotate        types.String `tfsdk:"month_rotate"`
@@ -51,6 +52,7 @@ func (r *vnstatConfigResource) Schema(_ context.Context, _ resource.SchemaReques
 		Attributes: map[string]schema.Attribute{
 			"id":                   computedIDAttribute(),
 			"managed":              managedAttribute(),
+			"etag":                 etagAttribute(),
 			"database_dir":         schema.StringAttribute{Optional: true, Description: "Directory where vnstat stores its databases."},
 			"interface_5min_hours": schema.StringAttribute{Optional: true, Description: "Hours of 5-minute resolution data to keep per interface."},
 			"month_rotate":         schema.StringAttribute{Optional: true, Description: "Day of the month on which monthly statistics are reset."},
@@ -80,12 +82,13 @@ func (r *vnstatConfigResource) Create(ctx context.Context, req resource.CreateRe
 	if resp.Diagnostics.HasError() {
 		return
 	}
-	obj, err := r.client.Patch(ctx, vnstatConfigPath, r.body(ctx, plan))
+	obj, etag, err := r.client.Patch(ctx, vnstatConfigPath, r.body(ctx, plan), "")
 	if err != nil {
-		resp.Diagnostics.AddError("Error configuring vnstat settings", err.Error())
+		writeErr(&resp.Diagnostics, "configuring", "vnstat settings", err)
 		return
 	}
 	r.read(ctx, obj, &plan)
+	plan.ETag = types.StringValue(etag)
 	resp.Diagnostics.Append(resp.State.Set(ctx, &plan)...)
 }
 
@@ -95,7 +98,7 @@ func (r *vnstatConfigResource) Read(ctx context.Context, req resource.ReadReques
 	if resp.Diagnostics.HasError() {
 		return
 	}
-	obj, found, err := r.client.GetObject(ctx, vnstatConfigPath)
+	obj, etag, found, err := r.client.GetObject(ctx, vnstatConfigPath)
 	if err != nil {
 		resp.Diagnostics.AddError("Error reading vnstat settings", err.Error())
 		return
@@ -105,21 +108,24 @@ func (r *vnstatConfigResource) Read(ctx context.Context, req resource.ReadReques
 		return
 	}
 	r.read(ctx, obj, &state)
+	state.ETag = types.StringValue(etag)
 	resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)
 }
 
 func (r *vnstatConfigResource) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
-	var plan vnstatConfigModel
+	var plan, state vnstatConfigModel
 	resp.Diagnostics.Append(req.Plan.Get(ctx, &plan)...)
+	resp.Diagnostics.Append(req.State.Get(ctx, &state)...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
-	obj, err := r.client.Patch(ctx, vnstatConfigPath, r.body(ctx, plan))
+	obj, etag, err := r.client.Patch(ctx, vnstatConfigPath, r.body(ctx, plan), state.ETag.ValueString())
 	if err != nil {
-		resp.Diagnostics.AddError("Error updating vnstat settings", err.Error())
+		writeErr(&resp.Diagnostics, "updating", "vnstat settings", err)
 		return
 	}
 	r.read(ctx, obj, &plan)
+	plan.ETag = types.StringValue(etag)
 	resp.Diagnostics.Append(resp.State.Set(ctx, &plan)...)
 }
 

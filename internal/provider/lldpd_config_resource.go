@@ -30,6 +30,7 @@ func NewLldpdConfigResource() resource.Resource {
 type lldpdConfigModel struct {
 	ID               types.String `tfsdk:"id"`
 	Managed          types.Bool   `tfsdk:"managed"`
+	ETag             types.String `tfsdk:"etag"`
 	EnableCDP        types.Bool   `tfsdk:"enable_cdp"`
 	EnableFDP        types.Bool   `tfsdk:"enable_fdp"`
 	EnableSONMP      types.Bool   `tfsdk:"enable_sonmp"`
@@ -58,6 +59,7 @@ func (r *lldpdConfigResource) Schema(_ context.Context, _ resource.SchemaRequest
 		Attributes: map[string]schema.Attribute{
 			"id":                computedIDAttribute(),
 			"managed":           managedAttribute(),
+			"etag":              etagAttribute(),
 			"enable_cdp":        optionalComputedBool("Advertise via Cisco Discovery Protocol. Defaults to false."),
 			"enable_fdp":        optionalComputedBool("Advertise via Foundry Discovery Protocol. Defaults to false."),
 			"enable_sonmp":      optionalComputedBool("Advertise via Nortel SONMP. Defaults to false."),
@@ -113,12 +115,13 @@ func (r *lldpdConfigResource) Create(ctx context.Context, req resource.CreateReq
 	if resp.Diagnostics.HasError() {
 		return
 	}
-	obj, err := r.client.Patch(ctx, lldpdConfigPath, body)
+	obj, etag, err := r.client.Patch(ctx, lldpdConfigPath, body, "")
 	if err != nil {
-		resp.Diagnostics.AddError("Error configuring lldpd settings", err.Error())
+		writeErr(&resp.Diagnostics, "configuring", "lldpd settings", err)
 		return
 	}
 	r.read(ctx, obj, &plan, ds)
+	plan.ETag = types.StringValue(etag)
 	resp.Diagnostics.Append(resp.State.Set(ctx, &plan)...)
 }
 
@@ -128,7 +131,7 @@ func (r *lldpdConfigResource) Read(ctx context.Context, req resource.ReadRequest
 	if resp.Diagnostics.HasError() {
 		return
 	}
-	obj, found, err := r.client.GetObject(ctx, lldpdConfigPath)
+	obj, etag, found, err := r.client.GetObject(ctx, lldpdConfigPath)
 	if err != nil {
 		resp.Diagnostics.AddError("Error reading lldpd settings", err.Error())
 		return
@@ -139,12 +142,14 @@ func (r *lldpdConfigResource) Read(ctx context.Context, req resource.ReadRequest
 	}
 	ds := newDiagsink(&resp.Diagnostics)
 	r.read(ctx, obj, &state, ds)
+	state.ETag = types.StringValue(etag)
 	resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)
 }
 
 func (r *lldpdConfigResource) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
-	var plan lldpdConfigModel
+	var plan, state lldpdConfigModel
 	resp.Diagnostics.Append(req.Plan.Get(ctx, &plan)...)
+	resp.Diagnostics.Append(req.State.Get(ctx, &state)...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
@@ -153,12 +158,13 @@ func (r *lldpdConfigResource) Update(ctx context.Context, req resource.UpdateReq
 	if resp.Diagnostics.HasError() {
 		return
 	}
-	obj, err := r.client.Patch(ctx, lldpdConfigPath, body)
+	obj, etag, err := r.client.Patch(ctx, lldpdConfigPath, body, state.ETag.ValueString())
 	if err != nil {
-		resp.Diagnostics.AddError("Error updating lldpd settings", err.Error())
+		writeErr(&resp.Diagnostics, "updating", "lldpd settings", err)
 		return
 	}
 	r.read(ctx, obj, &plan, ds)
+	plan.ETag = types.StringValue(etag)
 	resp.Diagnostics.Append(resp.State.Set(ctx, &plan)...)
 }
 

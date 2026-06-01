@@ -29,6 +29,7 @@ func NewFirewallZoneResource() resource.Resource {
 type firewallZoneModel struct {
 	ID      types.String `tfsdk:"id"`
 	Managed types.Bool   `tfsdk:"managed"`
+	ETag    types.String `tfsdk:"etag"`
 	Name    types.String `tfsdk:"name"`
 	Input   types.String `tfsdk:"input"`
 	Output  types.String `tfsdk:"output"`
@@ -53,6 +54,7 @@ func (r *firewallZoneResource) Schema(_ context.Context, _ resource.SchemaReques
 		Attributes: map[string]schema.Attribute{
 			"id":      computedIDAttribute(),
 			"managed": managedAttribute(),
+			"etag":    etagAttribute(),
 			"name": schema.StringAttribute{
 				Required:    true,
 				Description: "Zone name. Used by rules/redirects to reference this zone.",
@@ -105,12 +107,13 @@ func (r *firewallZoneResource) Create(ctx context.Context, req resource.CreateRe
 	if resp.Diagnostics.HasError() {
 		return
 	}
-	obj, err := r.client.Post(ctx, "/"+firewallZoneCollection, body)
+	obj, etag, err := r.client.Post(ctx, "/"+firewallZoneCollection, body, "")
 	if err != nil {
-		resp.Diagnostics.AddError("Error creating firewall zone", err.Error())
+		writeErr(&resp.Diagnostics, "creating", "firewall zone", err)
 		return
 	}
 	r.read(ctx, obj, &plan, ds)
+	plan.ETag = types.StringValue(etag)
 	resp.Diagnostics.Append(resp.State.Set(ctx, &plan)...)
 }
 
@@ -120,7 +123,7 @@ func (r *firewallZoneResource) Read(ctx context.Context, req resource.ReadReques
 	if resp.Diagnostics.HasError() {
 		return
 	}
-	obj, found, err := r.client.GetObject(ctx, "/"+firewallZoneCollection+"/"+state.ID.ValueString())
+	obj, etag, found, err := r.client.GetObject(ctx, "/"+firewallZoneCollection+"/"+state.ID.ValueString())
 	if err != nil {
 		resp.Diagnostics.AddError("Error reading firewall zone", err.Error())
 		return
@@ -131,12 +134,14 @@ func (r *firewallZoneResource) Read(ctx context.Context, req resource.ReadReques
 	}
 	ds := newDiagsink(&resp.Diagnostics)
 	r.read(ctx, obj, &state, ds)
+	state.ETag = types.StringValue(etag)
 	resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)
 }
 
 func (r *firewallZoneResource) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
-	var plan firewallZoneModel
+	var plan, state firewallZoneModel
 	resp.Diagnostics.Append(req.Plan.Get(ctx, &plan)...)
+	resp.Diagnostics.Append(req.State.Get(ctx, &state)...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
@@ -145,12 +150,13 @@ func (r *firewallZoneResource) Update(ctx context.Context, req resource.UpdateRe
 	if resp.Diagnostics.HasError() {
 		return
 	}
-	obj, err := r.client.Put(ctx, "/"+firewallZoneCollection+"/"+plan.ID.ValueString(), body)
+	obj, etag, err := r.client.Put(ctx, "/"+firewallZoneCollection+"/"+plan.ID.ValueString(), body, state.ETag.ValueString())
 	if err != nil {
-		resp.Diagnostics.AddError("Error updating firewall zone", err.Error())
+		writeErr(&resp.Diagnostics, "updating", "firewall zone", err)
 		return
 	}
 	r.read(ctx, obj, &plan, ds)
+	plan.ETag = types.StringValue(etag)
 	resp.Diagnostics.Append(resp.State.Set(ctx, &plan)...)
 }
 
@@ -160,8 +166,8 @@ func (r *firewallZoneResource) Delete(ctx context.Context, req resource.DeleteRe
 	if resp.Diagnostics.HasError() {
 		return
 	}
-	if err := r.client.Delete(ctx, "/"+firewallZoneCollection+"/"+state.ID.ValueString()); err != nil {
-		resp.Diagnostics.AddError("Error deleting firewall zone", err.Error())
+	if err := r.client.Delete(ctx, "/"+firewallZoneCollection+"/"+state.ID.ValueString(), state.ETag.ValueString()); err != nil {
+		writeErr(&resp.Diagnostics, "deleting", "firewall zone", err)
 	}
 }
 

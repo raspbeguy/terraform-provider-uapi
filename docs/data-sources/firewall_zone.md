@@ -27,6 +27,7 @@ data "uapi_firewall_zone" "lan" {
 
 ### Read-Only
 
+- `etag` (String) Opaque ETag of the resource's current state.
 - `family` (String) Address family: any, ipv4, or ipv6.
 - `forward` (String) Default policy for forwarded traffic.
 - `input` (String) Default policy for input traffic: ACCEPT, REJECT, or DROP.

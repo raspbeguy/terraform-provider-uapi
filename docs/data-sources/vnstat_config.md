@@ -22,6 +22,7 @@ data "uapi_vnstat_config" "this" {}
 ### Read-Only
 
 - `database_dir` (String) Directory where vnstat stores its databases.
+- `etag` (String) Opaque ETag of the resource's current state.
 - `id` (String) Stable id of the vnstat config section.
 - `interface_5min_hours` (String) Hours of 5-minute resolution data to keep per interface.
 - `managed` (Boolean) Whether the underlying uci section is uapi-managed.

@@ -5,6 +5,7 @@ import (
 
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	dsschema "github.com/hashicorp/terraform-plugin-framework/datasource/schema"
+	"github.com/hashicorp/terraform-plugin-framework/types"
 
 	"github.com/raspbeguy/terraform-provider-uapi/internal/client"
 )
@@ -32,6 +33,7 @@ func (d *snmpdAccessDataSource) Schema(_ context.Context, _ datasource.SchemaReq
 		Attributes: map[string]dsschema.Attribute{
 			"id":      dsIDAttribute(),
 			"managed": dsManagedAttribute(),
+			"etag":    dsComputedString("Opaque ETag of the resource's current state."),
 			"group":   dsComputedString("Name of the snmpd group this access entry applies to."),
 			"context": dsComputedString("SNMP context the access entry matches."),
 			"version": dsComputedString("Security model the entry matches: any, v1, v2c, or usm."),
@@ -50,7 +52,7 @@ func (d *snmpdAccessDataSource) Read(ctx context.Context, req datasource.ReadReq
 	if resp.Diagnostics.HasError() {
 		return
 	}
-	obj, found, err := d.client.GetObject(ctx, "/"+snmpdAccessCollection+"/"+m.ID.ValueString())
+	obj, etag, found, err := d.client.GetObject(ctx, "/"+snmpdAccessCollection+"/"+m.ID.ValueString())
 	if err != nil {
 		resp.Diagnostics.AddError("Error reading snmpd access", err.Error())
 		return
@@ -60,5 +62,6 @@ func (d *snmpdAccessDataSource) Read(ctx context.Context, req datasource.ReadReq
 		return
 	}
 	(&snmpdAccessResource{}).read(ctx, obj, &m)
+	m.ETag = types.StringValue(etag)
 	resp.Diagnostics.Append(resp.State.Set(ctx, &m)...)
 }

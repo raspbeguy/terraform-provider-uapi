@@ -147,7 +147,7 @@ func importByID(ctx context.Context, c *client.Client, collection, label string,
 // uapi-managed, adopts it (renaming it to a stable ULID). adopted reports
 // whether an adoption (a mutating rename) took place.
 func resolveImportID(ctx context.Context, c *client.Client, collection, importedID string) (id string, adopted bool, err error) {
-	obj, found, err := c.GetObject(ctx, fmt.Sprintf("/%s/%s", collection, importedID))
+	obj, _, found, err := c.GetObject(ctx, fmt.Sprintf("/%s/%s", collection, importedID))
 	if err != nil {
 		return "", false, err
 	}
@@ -155,7 +155,7 @@ func resolveImportID(ctx context.Context, c *client.Client, collection, imported
 		return "", false, fmt.Errorf("no resource found at /%s/%s", collection, importedID)
 	}
 	if managed, ok := obj["managed"].(bool); ok && !managed {
-		adoptedObj, err := c.Post(ctx, fmt.Sprintf("/%s/%s/adopt", collection, importedID), nil)
+		adoptedObj, _, err := c.Post(ctx, fmt.Sprintf("/%s/%s/adopt", collection, importedID), nil, "")
 		if err != nil {
 			return "", false, fmt.Errorf("adopting unmanaged section: %w", err)
 		}
@@ -168,4 +168,18 @@ func resolveImportID(ctx context.Context, c *client.Client, collection, imported
 		return existingID, false, nil
 	}
 	return importedID, false, nil
+}
+
+// writeErr standardizes diagnostics for write failures, giving the 412 stale
+// If-Match case a clear, actionable message instead of a raw error envelope.
+func writeErr(diags *diag.Diagnostics, action, label string, err error) {
+	if client.IsPreconditionFailed(err) {
+		diags.AddError(
+			label+" changed outside Terraform",
+			"The "+label+" was modified on the router since Terraform last read it (If-Match / ETag mismatch). "+
+				"Run a refresh (or re-plan) to pick up the current state, then retry.\n\n"+err.Error(),
+		)
+		return
+	}
+	diags.AddError("Error "+action+" "+label, err.Error())
 }

@@ -28,6 +28,7 @@ data "uapi_firewall_rule" "ssh" {
 ### Read-Only
 
 - `enabled` (Boolean) Whether the rule is active.
+- `etag` (String) Opaque ETag of the resource's current state.
 - `managed` (Boolean) Whether the underlying uci section is uapi-managed.
 - `match` (Attributes) Match conditions for the rule. (see [below for nested schema](#nestedatt--match))
 - `name` (String) Rule name.

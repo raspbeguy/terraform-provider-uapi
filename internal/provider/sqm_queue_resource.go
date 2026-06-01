@@ -29,6 +29,7 @@ func NewSqmQueueResource() resource.Resource {
 type sqmQueueModel struct {
 	ID        types.String `tfsdk:"id"`
 	Managed   types.Bool   `tfsdk:"managed"`
+	ETag      types.String `tfsdk:"etag"`
 	Enabled   types.Bool   `tfsdk:"enabled"`
 	Interface types.String `tfsdk:"interface"`
 	Download  types.String `tfsdk:"download"`
@@ -53,6 +54,7 @@ func (r *sqmQueueResource) Schema(_ context.Context, _ resource.SchemaRequest, r
 		Attributes: map[string]schema.Attribute{
 			"id":      computedIDAttribute(),
 			"managed": managedAttribute(),
+			"etag":    etagAttribute(),
 			"enabled": optionalComputedBool("Whether the queue is enabled. Defaults to true."),
 			"interface": schema.StringAttribute{
 				Required:    true,
@@ -118,12 +120,13 @@ func (r *sqmQueueResource) Create(ctx context.Context, req resource.CreateReques
 	if resp.Diagnostics.HasError() {
 		return
 	}
-	obj, err := r.client.Post(ctx, "/"+sqmQueueCollection, r.body(ctx, plan))
+	obj, etag, err := r.client.Post(ctx, "/"+sqmQueueCollection, r.body(ctx, plan), "")
 	if err != nil {
-		resp.Diagnostics.AddError("Error creating SQM queue", err.Error())
+		writeErr(&resp.Diagnostics, "creating", "SQM queue", err)
 		return
 	}
 	r.read(ctx, obj, &plan)
+	plan.ETag = types.StringValue(etag)
 	resp.Diagnostics.Append(resp.State.Set(ctx, &plan)...)
 }
 
@@ -133,7 +136,7 @@ func (r *sqmQueueResource) Read(ctx context.Context, req resource.ReadRequest, r
 	if resp.Diagnostics.HasError() {
 		return
 	}
-	obj, found, err := r.client.GetObject(ctx, "/"+sqmQueueCollection+"/"+state.ID.ValueString())
+	obj, etag, found, err := r.client.GetObject(ctx, "/"+sqmQueueCollection+"/"+state.ID.ValueString())
 	if err != nil {
 		resp.Diagnostics.AddError("Error reading SQM queue", err.Error())
 		return
@@ -143,21 +146,24 @@ func (r *sqmQueueResource) Read(ctx context.Context, req resource.ReadRequest, r
 		return
 	}
 	r.read(ctx, obj, &state)
+	state.ETag = types.StringValue(etag)
 	resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)
 }
 
 func (r *sqmQueueResource) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
-	var plan sqmQueueModel
+	var plan, state sqmQueueModel
 	resp.Diagnostics.Append(req.Plan.Get(ctx, &plan)...)
+	resp.Diagnostics.Append(req.State.Get(ctx, &state)...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
-	obj, err := r.client.Put(ctx, "/"+sqmQueueCollection+"/"+plan.ID.ValueString(), r.body(ctx, plan))
+	obj, etag, err := r.client.Put(ctx, "/"+sqmQueueCollection+"/"+plan.ID.ValueString(), r.body(ctx, plan), state.ETag.ValueString())
 	if err != nil {
-		resp.Diagnostics.AddError("Error updating SQM queue", err.Error())
+		writeErr(&resp.Diagnostics, "updating", "SQM queue", err)
 		return
 	}
 	r.read(ctx, obj, &plan)
+	plan.ETag = types.StringValue(etag)
 	resp.Diagnostics.Append(resp.State.Set(ctx, &plan)...)
 }
 
@@ -167,8 +173,8 @@ func (r *sqmQueueResource) Delete(ctx context.Context, req resource.DeleteReques
 	if resp.Diagnostics.HasError() {
 		return
 	}
-	if err := r.client.Delete(ctx, "/"+sqmQueueCollection+"/"+state.ID.ValueString()); err != nil {
-		resp.Diagnostics.AddError("Error deleting SQM queue", err.Error())
+	if err := r.client.Delete(ctx, "/"+sqmQueueCollection+"/"+state.ID.ValueString(), state.ETag.ValueString()); err != nil {
+		writeErr(&resp.Diagnostics, "deleting", "SQM queue", err)
 	}
 }
 

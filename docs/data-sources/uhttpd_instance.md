@@ -30,6 +30,7 @@ data "uapi_uhttpd_instance" "main" {
 - `cert` (String) Path to the TLS certificate.
 - `cgi_prefix` (String) URL prefix mapped to CGI scripts.
 - `error_page` (String) Virtual URL or CGI script handling error pages.
+- `etag` (String) Opaque ETag of the resource's current state.
 - `home` (String) Document root served by this instance.
 - `http_keepalive` (String) HTTP keep-alive timeout in seconds.
 - `index_page` (List of String) Index file names tried for directory requests.

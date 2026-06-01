@@ -28,6 +28,7 @@ data "uapi_network_bridge_vlan" "guests" {
 ### Read-Only
 
 - `device` (String) Bridge device name this VLAN belongs to.
+- `etag` (String) Opaque ETag of the resource's current state.
 - `managed` (Boolean) Whether the underlying uci section is uapi-managed.
 - `ports` (List of String) Member ports, each as <name>[:t|:u|:*].
 - `vlan` (String) VLAN id (1-4094).

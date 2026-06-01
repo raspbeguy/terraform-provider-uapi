@@ -29,18 +29,83 @@ data "uapi_network_interface" "lan" {
 
 - `addresses` (List of String) WireGuard interface addresses (CIDRs).
 - `auto` (Boolean) Whether the interface is brought up automatically.
+- `clientid` (String) DHCP client identifier (dhcp).
+- `defaultroute` (Boolean) Whether the default route received over DHCP is installed (dhcp).
+- `delegate` (Boolean) Whether prefix delegation downstream is accepted (dhcpv6).
 - `device` (String) Underlying device this interface binds to.
 - `dns` (List of String) DNS servers.
+- `etag` (String) Opaque ETag of the resource's current state.
 - `gateway` (String) Default gateway.
 - `has_private_key` (Boolean) Whether a WireGuard private key is configured.
+- `hostname` (String) Client hostname sent in DHCPDISCOVER (dhcp).
 - `ip4table` (String) WireGuard IPv4 routing table.
 - `ip6assign` (String) IPv6 prefix assignment length.
+- `ip6hint` (String) Preferred IPv6 prefix hint for prefix delegation (dhcpv6).
+- `ip6ifaceid` (String) Static IPv6 interface id for IA_NA (dhcpv6).
 - `ip6table` (String) WireGuard IPv6 routing table.
 - `ipaddr` (String) IPv4 address.
+- `ipaddrs` (List of String) Full IPv4 address list for a static interface.
 - `listen_port` (String) WireGuard UDP listen port.
 - `managed` (Boolean) Whether the underlying uci section is uapi-managed.
+- `metric` (String) Default-route metric (dhcp).
 - `mtu` (String) Interface MTU.
 - `netmask` (String) IPv4 netmask.
 - `nohostroute` (Boolean) WireGuard: whether host routes for peers are skipped.
+- `peerdns` (Boolean) Whether DNS servers advertised by the upstream are accepted (dhcp/dhcpv6).
 - `private_key` (String, Sensitive) Always null; the WireGuard private key is never returned.
 - `proto` (String) Protocol: static, dhcp, dhcpv6, pppoe, none, ppp, or wwan.
+- `reqaddress` (String) DHCPv6 IA_NA request mode: try, force, or none (dhcpv6).
+- `reqprefix` (String) DHCPv6 prefix-delegation request: auto, no, or a numeric prefix size (dhcpv6).
+- `runtime` (Attributes) Live ubus-derived runtime state (read-only; reflects actual operation, not config). (see [below for nested schema](#nestedatt--runtime))
+
+<a id="nestedatt--runtime"></a>
+### Nested Schema for `runtime`
+
+Read-Only:
+
+- `available` (Boolean) Whether the interface is available.
+- `ipv4_address` (Attributes List) Assigned IPv4 addresses. (see [below for nested schema](#nestedatt--runtime--ipv4_address))
+- `ipv6_address` (Attributes List) Assigned IPv6 addresses. (see [below for nested schema](#nestedatt--runtime--ipv6_address))
+- `ipv6_prefix` (Attributes List) Delegated IPv6 prefixes. (see [below for nested schema](#nestedatt--runtime--ipv6_prefix))
+- `l3_device` (String) Actual L3 kernel device.
+- `pending` (Boolean) Whether the interface is mid-setup.
+- `route` (Attributes List) Active routes. (see [below for nested schema](#nestedatt--runtime--route))
+- `up` (Boolean) Whether the interface is up.
+- `uptime` (Number) Seconds since the interface came up.
+
+<a id="nestedatt--runtime--ipv4_address"></a>
+### Nested Schema for `runtime.ipv4_address`
+
+Read-Only:
+
+- `address` (String) Address.
+- `mask` (Number) Prefix length.
+
+
+<a id="nestedatt--runtime--ipv6_address"></a>
+### Nested Schema for `runtime.ipv6_address`
+
+Read-Only:
+
+- `address` (String) Address.
+- `mask` (Number) Prefix length.
+
+
+<a id="nestedatt--runtime--ipv6_prefix"></a>
+### Nested Schema for `runtime.ipv6_prefix`
+
+Read-Only:
+
+- `address` (String) Address.
+- `mask` (Number) Prefix length.
+
+
+<a id="nestedatt--runtime--route"></a>
+### Nested Schema for `runtime.route`
+
+Read-Only:
+
+- `mask` (Number)
+- `nexthop` (String)
+- `source` (String)
+- `target` (String)

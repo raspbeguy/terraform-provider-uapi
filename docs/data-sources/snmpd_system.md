@@ -21,6 +21,7 @@ data "uapi_snmpd_system" "this" {}
 
 ### Read-Only
 
+- `etag` (String) Opaque ETag of the resource's current state.
 - `id` (String) Stable id of the snmpd system section.
 - `managed` (Boolean) Whether the underlying uci section is uapi-managed.
 - `sys_contact` (String) Value reported as sysContact (the administrative contact).

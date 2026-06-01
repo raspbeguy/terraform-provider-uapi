@@ -82,7 +82,7 @@ func (r *packageResource) Create(ctx context.Context, req resource.CreateRequest
 	if resp.Diagnostics.HasError() {
 		return
 	}
-	obj, err := r.client.Post(ctx, "/"+packageCollection, map[string]any{"name": plan.Name.ValueString()})
+	obj, _, err := r.client.Post(ctx, "/"+packageCollection, map[string]any{"name": plan.Name.ValueString()}, "")
 	if err != nil {
 		resp.Diagnostics.AddError("Error installing package", err.Error())
 		return
@@ -97,7 +97,7 @@ func (r *packageResource) Read(ctx context.Context, req resource.ReadRequest, re
 	if resp.Diagnostics.HasError() {
 		return
 	}
-	obj, found, err := r.client.GetObject(ctx, "/"+packageCollection+"/"+state.ID.ValueString())
+	obj, _, found, err := r.client.GetObject(ctx, "/"+packageCollection+"/"+state.ID.ValueString())
 	if err != nil {
 		resp.Diagnostics.AddError("Error reading package", err.Error())
 		return
@@ -118,7 +118,7 @@ func (r *packageResource) Update(ctx context.Context, req resource.UpdateRequest
 	if resp.Diagnostics.HasError() {
 		return
 	}
-	obj, found, err := r.client.GetObject(ctx, "/"+packageCollection+"/"+plan.ID.ValueString())
+	obj, _, found, err := r.client.GetObject(ctx, "/"+packageCollection+"/"+plan.ID.ValueString())
 	if err != nil {
 		resp.Diagnostics.AddError("Error reading package", err.Error())
 		return
@@ -137,7 +137,7 @@ func (r *packageResource) Delete(ctx context.Context, req resource.DeleteRequest
 	if resp.Diagnostics.HasError() {
 		return
 	}
-	if err := r.client.Delete(ctx, "/"+packageCollection+"/"+state.ID.ValueString()); err != nil {
+	if err := r.client.Delete(ctx, "/"+packageCollection+"/"+state.ID.ValueString(), ""); err != nil {
 		resp.Diagnostics.AddError("Error removing package", err.Error())
 	}
 }

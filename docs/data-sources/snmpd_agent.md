@@ -28,4 +28,5 @@ data "uapi_snmpd_agent" "this" {
 ### Read-Only
 
 - `agentaddress` (List of String) Addresses the SNMP agent listens on (e.g. UDP:161, udp6:161).
+- `etag` (String) Opaque ETag of the resource's current state.
 - `managed` (Boolean) Whether the underlying uci section is uapi-managed.

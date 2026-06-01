@@ -29,6 +29,7 @@ func NewVnstatInterfaceResource() resource.Resource {
 type vnstatInterfaceModel struct {
 	ID        types.String `tfsdk:"id"`
 	Managed   types.Bool   `tfsdk:"managed"`
+	ETag      types.String `tfsdk:"etag"`
 	Interface types.String `tfsdk:"interface"`
 	Enabled   types.Bool   `tfsdk:"enabled"`
 }
@@ -47,6 +48,7 @@ func (r *vnstatInterfaceResource) Schema(_ context.Context, _ resource.SchemaReq
 		Attributes: map[string]schema.Attribute{
 			"id":      computedIDAttribute(),
 			"managed": managedAttribute(),
+			"etag":    etagAttribute(),
 			"interface": schema.StringAttribute{
 				Required:    true,
 				Description: "Name of the network interface to monitor. Must reference an existing network interface.",
@@ -76,12 +78,13 @@ func (r *vnstatInterfaceResource) Create(ctx context.Context, req resource.Creat
 	if resp.Diagnostics.HasError() {
 		return
 	}
-	obj, err := r.client.Post(ctx, "/"+vnstatInterfaceCollection, r.body(ctx, plan))
+	obj, etag, err := r.client.Post(ctx, "/"+vnstatInterfaceCollection, r.body(ctx, plan), "")
 	if err != nil {
-		resp.Diagnostics.AddError("Error creating vnstat interface", err.Error())
+		writeErr(&resp.Diagnostics, "creating", "vnstat interface", err)
 		return
 	}
 	r.read(ctx, obj, &plan)
+	plan.ETag = types.StringValue(etag)
 	resp.Diagnostics.Append(resp.State.Set(ctx, &plan)...)
 }
 
@@ -91,7 +94,7 @@ func (r *vnstatInterfaceResource) Read(ctx context.Context, req resource.ReadReq
 	if resp.Diagnostics.HasError() {
 		return
 	}
-	obj, found, err := r.client.GetObject(ctx, "/"+vnstatInterfaceCollection+"/"+state.ID.ValueString())
+	obj, etag, found, err := r.client.GetObject(ctx, "/"+vnstatInterfaceCollection+"/"+state.ID.ValueString())
 	if err != nil {
 		resp.Diagnostics.AddError("Error reading vnstat interface", err.Error())
 		return
@@ -101,21 +104,24 @@ func (r *vnstatInterfaceResource) Read(ctx context.Context, req resource.ReadReq
 		return
 	}
 	r.read(ctx, obj, &state)
+	state.ETag = types.StringValue(etag)
 	resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)
 }
 
 func (r *vnstatInterfaceResource) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
-	var plan vnstatInterfaceModel
+	var plan, state vnstatInterfaceModel
 	resp.Diagnostics.Append(req.Plan.Get(ctx, &plan)...)
+	resp.Diagnostics.Append(req.State.Get(ctx, &state)...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
-	obj, err := r.client.Put(ctx, "/"+vnstatInterfaceCollection+"/"+plan.ID.ValueString(), r.body(ctx, plan))
+	obj, etag, err := r.client.Put(ctx, "/"+vnstatInterfaceCollection+"/"+plan.ID.ValueString(), r.body(ctx, plan), state.ETag.ValueString())
 	if err != nil {
-		resp.Diagnostics.AddError("Error updating vnstat interface", err.Error())
+		writeErr(&resp.Diagnostics, "updating", "vnstat interface", err)
 		return
 	}
 	r.read(ctx, obj, &plan)
+	plan.ETag = types.StringValue(etag)
 	resp.Diagnostics.Append(resp.State.Set(ctx, &plan)...)
 }
 
@@ -125,8 +131,8 @@ func (r *vnstatInterfaceResource) Delete(ctx context.Context, req resource.Delet
 	if resp.Diagnostics.HasError() {
 		return
 	}
-	if err := r.client.Delete(ctx, "/"+vnstatInterfaceCollection+"/"+state.ID.ValueString()); err != nil {
-		resp.Diagnostics.AddError("Error deleting vnstat interface", err.Error())
+	if err := r.client.Delete(ctx, "/"+vnstatInterfaceCollection+"/"+state.ID.ValueString(), state.ETag.ValueString()); err != nil {
+		writeErr(&resp.Diagnostics, "deleting", "vnstat interface", err)
 	}
 }
 

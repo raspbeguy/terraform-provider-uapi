@@ -5,6 +5,7 @@ import (
 
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	dsschema "github.com/hashicorp/terraform-plugin-framework/datasource/schema"
+	"github.com/hashicorp/terraform-plugin-framework/types"
 
 	"github.com/raspbeguy/terraform-provider-uapi/internal/client"
 )
@@ -32,6 +33,7 @@ func (d *uhttpdInstanceDataSource) Schema(_ context.Context, _ datasource.Schema
 		Attributes: map[string]dsschema.Attribute{
 			"id":              dsIDAttribute(),
 			"managed":         dsManagedAttribute(),
+			"etag":            dsComputedString("Opaque ETag of the resource's current state."),
 			"listen_http":     dsComputedStringList("Addresses listened on for HTTP."),
 			"listen_https":    dsComputedStringList("Addresses listened on for HTTPS."),
 			"home":            dsComputedString("Document root served by this instance."),
@@ -61,7 +63,7 @@ func (d *uhttpdInstanceDataSource) Read(ctx context.Context, req datasource.Read
 	if resp.Diagnostics.HasError() {
 		return
 	}
-	obj, found, err := d.client.GetObject(ctx, "/"+uhttpdInstanceCollection+"/"+m.ID.ValueString())
+	obj, etag, found, err := d.client.GetObject(ctx, "/"+uhttpdInstanceCollection+"/"+m.ID.ValueString())
 	if err != nil {
 		resp.Diagnostics.AddError("Error reading uhttpd instance", err.Error())
 		return
@@ -72,5 +74,6 @@ func (d *uhttpdInstanceDataSource) Read(ctx context.Context, req datasource.Read
 	}
 	ds := newDiagsink(&resp.Diagnostics)
 	(&uhttpdInstanceResource{}).read(ctx, obj, &m, ds)
+	m.ETag = types.StringValue(etag)
 	resp.Diagnostics.Append(resp.State.Set(ctx, &m)...)
 }

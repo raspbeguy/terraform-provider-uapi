@@ -50,7 +50,8 @@ The provider covers the full curated uapi surface (no `/raw`). The per-resource 
 - **DHCP/DNS:** `uapi_dhcp_host`, `uapi_dhcp_server`, `uapi_dhcp_dnsmasq` (singleton),
   `uapi_dhcp_odhcpd` (singleton), `uapi_unbound_server` (singleton).
 - **System:** `uapi_system` (singleton), `uapi_system_timeserver`, `uapi_dropbear_instance`,
-  `uapi_uhttpd_instance`, `uapi_uhttpd_cert`, `uapi_lldpd_config` (singleton).
+  `uapi_uhttpd_instance`, `uapi_uhttpd_cert`, `uapi_lldpd_config` (singleton),
+  `uapi_authorized_key` (root SSH keys), `uapi_system_password` (write-only password set).
 - **SNMP:** `uapi_snmpd_system` (singleton), `uapi_snmpd_com2sec`, `uapi_snmpd_group`,
   `uapi_snmpd_access`, `uapi_snmpd_agent`.
 - **Traffic/metrics:** `uapi_sqm_queue`, `uapi_vnstat_interface`, `uapi_vnstat_config` (singleton),
@@ -62,7 +63,12 @@ The provider covers the full curated uapi surface (no `/raw`). The per-resource 
 
 Every resource type has a matching lookup data source (by `id`, or no argument for singletons), plus:
 
-- `uapi_dhcp_leases`: the current active DHCP leases reported at runtime (read-only, list).
+- `uapi_dhcp_leases`: active IPv4 DHCP leases reported at runtime (read-only, list).
+- `uapi_dhcp_leases6`: active IPv6 (odhcpd) leases (read-only, list).
+
+The `uapi_network_interface` and `uapi_wireless_interface` data sources also expose a computed
+`runtime` block (live ubus state: interface up/addresses/routes, wireless signal/assoclist). It is
+read-only observed state, surfaced only on the data sources, never on the resources.
 
 ## Behaviour notes
 
@@ -72,8 +78,13 @@ Every resource type has a matching lookup data source (by `id`, or no argument f
   `Optional + Computed`, so omitting them in config does not produce perpetual diffs.
 - **423 locked retries.** uapi serializes writes behind a global lock and returns `423` with
   `Retry-After` under contention. The provider retries automatically.
-- **Write-only key.** `uapi_wireless_interface.key` is never returned by the API. The provider
-  keeps the configured value in state and exposes `has_key` to tell whether one is set.
+- **Write-only secrets.** `uapi_wireless_interface.key`, `uapi_network_interface.private_key`, and
+  `uapi_network_wireguard_peer.preshared_key` are never returned by the API; the provider keeps the
+  configured value and exposes a `has_*` computed flag. `uapi_system_password.password_wo` is a
+  true write-only attribute (never stored in state; bump `password_wo_version` to re-apply).
+- **Optimistic concurrency (ETag / If-Match).** Each resource tracks an `etag`; updates and deletes
+  send it as `If-Match`, so a change made out of band (e.g. via LuCI) since the last refresh fails
+  with a clear "changed outside Terraform" error (HTTP 412) instead of silently clobbering.
 
 ### `uapi_system` is a singleton
 

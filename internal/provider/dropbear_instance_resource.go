@@ -29,6 +29,7 @@ func NewDropbearInstanceResource() resource.Resource {
 type dropbearInstanceModel struct {
 	ID               types.String `tfsdk:"id"`
 	Managed          types.Bool   `tfsdk:"managed"`
+	ETag             types.String `tfsdk:"etag"`
 	Enable           types.Bool   `tfsdk:"enable"`
 	Port             types.String `tfsdk:"port"`
 	PasswordAuth     types.Bool   `tfsdk:"password_auth"`
@@ -53,6 +54,7 @@ func (r *dropbearInstanceResource) Schema(_ context.Context, _ resource.SchemaRe
 		Attributes: map[string]schema.Attribute{
 			"id":                 computedIDAttribute(),
 			"managed":            managedAttribute(),
+			"etag":               etagAttribute(),
 			"enable":             optionalComputedBool("Whether this dropbear instance is enabled. Defaults to true."),
 			"port":               schema.StringAttribute{Optional: true, Description: "TCP port to listen on (1-65535)."},
 			"password_auth":      optionalComputedBool("Allow password authentication. Defaults to true."),
@@ -97,12 +99,13 @@ func (r *dropbearInstanceResource) Create(ctx context.Context, req resource.Crea
 	if resp.Diagnostics.HasError() {
 		return
 	}
-	obj, err := r.client.Post(ctx, "/"+dropbearInstanceCollection, r.body(plan))
+	obj, etag, err := r.client.Post(ctx, "/"+dropbearInstanceCollection, r.body(plan), "")
 	if err != nil {
-		resp.Diagnostics.AddError("Error creating dropbear instance", err.Error())
+		writeErr(&resp.Diagnostics, "creating", "dropbear instance", err)
 		return
 	}
 	r.read(ctx, obj, &plan)
+	plan.ETag = types.StringValue(etag)
 	resp.Diagnostics.Append(resp.State.Set(ctx, &plan)...)
 }
 
@@ -112,7 +115,7 @@ func (r *dropbearInstanceResource) Read(ctx context.Context, req resource.ReadRe
 	if resp.Diagnostics.HasError() {
 		return
 	}
-	obj, found, err := r.client.GetObject(ctx, "/"+dropbearInstanceCollection+"/"+state.ID.ValueString())
+	obj, etag, found, err := r.client.GetObject(ctx, "/"+dropbearInstanceCollection+"/"+state.ID.ValueString())
 	if err != nil {
 		resp.Diagnostics.AddError("Error reading dropbear instance", err.Error())
 		return
@@ -122,21 +125,24 @@ func (r *dropbearInstanceResource) Read(ctx context.Context, req resource.ReadRe
 		return
 	}
 	r.read(ctx, obj, &state)
+	state.ETag = types.StringValue(etag)
 	resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)
 }
 
 func (r *dropbearInstanceResource) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
-	var plan dropbearInstanceModel
+	var plan, state dropbearInstanceModel
 	resp.Diagnostics.Append(req.Plan.Get(ctx, &plan)...)
+	resp.Diagnostics.Append(req.State.Get(ctx, &state)...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
-	obj, err := r.client.Put(ctx, "/"+dropbearInstanceCollection+"/"+plan.ID.ValueString(), r.body(plan))
+	obj, etag, err := r.client.Put(ctx, "/"+dropbearInstanceCollection+"/"+plan.ID.ValueString(), r.body(plan), state.ETag.ValueString())
 	if err != nil {
-		resp.Diagnostics.AddError("Error updating dropbear instance", err.Error())
+		writeErr(&resp.Diagnostics, "updating", "dropbear instance", err)
 		return
 	}
 	r.read(ctx, obj, &plan)
+	plan.ETag = types.StringValue(etag)
 	resp.Diagnostics.Append(resp.State.Set(ctx, &plan)...)
 }
 
@@ -146,8 +152,8 @@ func (r *dropbearInstanceResource) Delete(ctx context.Context, req resource.Dele
 	if resp.Diagnostics.HasError() {
 		return
 	}
-	if err := r.client.Delete(ctx, "/"+dropbearInstanceCollection+"/"+state.ID.ValueString()); err != nil {
-		resp.Diagnostics.AddError("Error deleting dropbear instance", err.Error())
+	if err := r.client.Delete(ctx, "/"+dropbearInstanceCollection+"/"+state.ID.ValueString(), state.ETag.ValueString()); err != nil {
+		writeErr(&resp.Diagnostics, "deleting", "dropbear instance", err)
 	}
 }
 

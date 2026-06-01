@@ -29,6 +29,7 @@ func NewWirelessDeviceResource() resource.Resource {
 type wirelessDeviceModel struct {
 	ID       types.String `tfsdk:"id"`
 	Managed  types.Bool   `tfsdk:"managed"`
+	ETag     types.String `tfsdk:"etag"`
 	Type     types.String `tfsdk:"type"`
 	Band     types.String `tfsdk:"band"`
 	Channel  types.String `tfsdk:"channel"`
@@ -52,6 +53,7 @@ func (r *wirelessDeviceResource) Schema(_ context.Context, _ resource.SchemaRequ
 		Attributes: map[string]schema.Attribute{
 			"id":      computedIDAttribute(),
 			"managed": managedAttribute(),
+			"etag":    etagAttribute(),
 			"type": schema.StringAttribute{
 				Required:    true,
 				Description: "Driver type: mac80211 or broadcom.",
@@ -96,12 +98,13 @@ func (r *wirelessDeviceResource) Create(ctx context.Context, req resource.Create
 	if resp.Diagnostics.HasError() {
 		return
 	}
-	obj, err := r.client.Post(ctx, "/"+wirelessDeviceCollection, r.body(ctx, plan))
+	obj, etag, err := r.client.Post(ctx, "/"+wirelessDeviceCollection, r.body(ctx, plan), "")
 	if err != nil {
-		resp.Diagnostics.AddError("Error creating wireless device", err.Error())
+		writeErr(&resp.Diagnostics, "creating", "wireless device", err)
 		return
 	}
 	r.read(ctx, obj, &plan)
+	plan.ETag = types.StringValue(etag)
 	resp.Diagnostics.Append(resp.State.Set(ctx, &plan)...)
 }
 
@@ -111,7 +114,7 @@ func (r *wirelessDeviceResource) Read(ctx context.Context, req resource.ReadRequ
 	if resp.Diagnostics.HasError() {
 		return
 	}
-	obj, found, err := r.client.GetObject(ctx, "/"+wirelessDeviceCollection+"/"+state.ID.ValueString())
+	obj, etag, found, err := r.client.GetObject(ctx, "/"+wirelessDeviceCollection+"/"+state.ID.ValueString())
 	if err != nil {
 		resp.Diagnostics.AddError("Error reading wireless device", err.Error())
 		return
@@ -121,21 +124,24 @@ func (r *wirelessDeviceResource) Read(ctx context.Context, req resource.ReadRequ
 		return
 	}
 	r.read(ctx, obj, &state)
+	state.ETag = types.StringValue(etag)
 	resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)
 }
 
 func (r *wirelessDeviceResource) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
-	var plan wirelessDeviceModel
+	var plan, state wirelessDeviceModel
 	resp.Diagnostics.Append(req.Plan.Get(ctx, &plan)...)
+	resp.Diagnostics.Append(req.State.Get(ctx, &state)...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
-	obj, err := r.client.Put(ctx, "/"+wirelessDeviceCollection+"/"+plan.ID.ValueString(), r.body(ctx, plan))
+	obj, etag, err := r.client.Put(ctx, "/"+wirelessDeviceCollection+"/"+plan.ID.ValueString(), r.body(ctx, plan), state.ETag.ValueString())
 	if err != nil {
-		resp.Diagnostics.AddError("Error updating wireless device", err.Error())
+		writeErr(&resp.Diagnostics, "updating", "wireless device", err)
 		return
 	}
 	r.read(ctx, obj, &plan)
+	plan.ETag = types.StringValue(etag)
 	resp.Diagnostics.Append(resp.State.Set(ctx, &plan)...)
 }
 
@@ -145,8 +151,8 @@ func (r *wirelessDeviceResource) Delete(ctx context.Context, req resource.Delete
 	if resp.Diagnostics.HasError() {
 		return
 	}
-	if err := r.client.Delete(ctx, "/"+wirelessDeviceCollection+"/"+state.ID.ValueString()); err != nil {
-		resp.Diagnostics.AddError("Error deleting wireless device", err.Error())
+	if err := r.client.Delete(ctx, "/"+wirelessDeviceCollection+"/"+state.ID.ValueString(), state.ETag.ValueString()); err != nil {
+		writeErr(&resp.Diagnostics, "deleting", "wireless device", err)
 	}
 }
 

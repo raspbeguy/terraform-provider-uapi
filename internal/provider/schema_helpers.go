@@ -26,6 +26,16 @@ func managedAttribute() schema.BoolAttribute {
 	}
 }
 
+// etagAttribute carries the uapi ETag of the last read/write so Update and
+// Delete can send If-Match for optimistic concurrency. Plain Computed (no
+// UseStateForUnknown): the value genuinely changes on every write.
+func etagAttribute() schema.StringAttribute {
+	return schema.StringAttribute{
+		Computed:    true,
+		Description: "Opaque ETag of the resource's current state, used for If-Match optimistic concurrency.",
+	}
+}
+
 // The optionalComputed* helpers cover fields uapi normalizes or defaults
 // server-side. Optional+Computed plus UseStateForUnknown stops omitted fields
 // from showing a perpetual diff against the value the server fills in.

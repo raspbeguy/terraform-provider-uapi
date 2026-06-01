@@ -31,6 +31,7 @@ data "uapi_dhcp_server" "lan" {
 - `dhcpv6` (String) DHCPv6 mode: disabled, server, relay, or hybrid.
 - `domain` (String) DNS domain announced to clients on this interface.
 - `dynamicdhcp` (Boolean) Whether dynamic leases are handed out.
+- `etag` (String) Opaque ETag of the resource's current state.
 - `force` (Boolean) Whether DHCP is served even if another server is detected.
 - `ignore` (Boolean) Whether DHCP is disabled on this interface.
 - `interface` (String) Network interface this pool serves.

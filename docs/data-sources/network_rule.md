@@ -29,6 +29,7 @@ data "uapi_network_rule" "from_guests" {
 
 - `action` (String) Rule action: lookup, goto, unreachable, prohibit, blackhole, or throw.
 - `dest` (String) Destination IPv4 address or CIDR selector.
+- `etag` (String) Opaque ETag of the resource's current state.
 - `goto` (String) Priority to jump to.
 - `in` (String) Incoming interface selector.
 - `invert` (Boolean) Whether the rule selectors are inverted.

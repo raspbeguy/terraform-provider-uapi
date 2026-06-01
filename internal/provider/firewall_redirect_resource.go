@@ -27,12 +27,16 @@ func NewFirewallRedirectResource() resource.Resource {
 }
 
 type firewallRedirectModel struct {
-	ID      types.String           `tfsdk:"id"`
-	Managed types.Bool             `tfsdk:"managed"`
-	Name    types.String           `tfsdk:"name"`
-	Target  types.String           `tfsdk:"target"`
-	Enabled types.Bool             `tfsdk:"enabled"`
-	Match   *firewallRedirectMatch `tfsdk:"match"`
+	ID             types.String           `tfsdk:"id"`
+	Managed        types.Bool             `tfsdk:"managed"`
+	ETag           types.String           `tfsdk:"etag"`
+	Name           types.String           `tfsdk:"name"`
+	Target         types.String           `tfsdk:"target"`
+	Enabled        types.Bool             `tfsdk:"enabled"`
+	Match          *firewallRedirectMatch `tfsdk:"match"`
+	Reflection     types.Bool             `tfsdk:"reflection"`
+	ReflectionSrc  types.String           `tfsdk:"reflection_src"`
+	ReflectionZone types.List             `tfsdk:"reflection_zone"`
 }
 
 type firewallRedirectMatch struct {
@@ -61,6 +65,7 @@ func (r *firewallRedirectResource) Schema(_ context.Context, _ resource.SchemaRe
 		Attributes: map[string]schema.Attribute{
 			"id":      computedIDAttribute(),
 			"managed": managedAttribute(),
+			"etag":    etagAttribute(),
 			"name": schema.StringAttribute{
 				Optional:    true,
 				Description: "Optional human-readable redirect name.",
@@ -88,6 +93,15 @@ func (r *firewallRedirectResource) Schema(_ context.Context, _ resource.SchemaRe
 					"family":    optionalComputedString("Address family: any, ipv4, or ipv6. Defaults to any."),
 				},
 			},
+			"reflection": schema.BoolAttribute{
+				Optional:    true,
+				Description: "Enable NAT loopback / hairpinning for this redirect.",
+			},
+			"reflection_src": schema.StringAttribute{
+				Optional:    true,
+				Description: "Source address used for hairpinned packets: internal or external.",
+			},
+			"reflection_zone": optionalComputedStringList("Firewall zones in which NAT reflection is applied."),
 		},
 	}
 }
@@ -110,6 +124,9 @@ func (r *firewallRedirectResource) body(ctx context.Context, m firewallRedirectM
 		putStr(match, "family", m.Match.Family)
 	}
 	out["match"] = match
+	putBool(out, "reflection", m.Reflection)
+	putStr(out, "reflection_src", m.ReflectionSrc)
+	putList(ctx, out, "reflection_zone", m.ReflectionZone, diags.d)
 	return out
 }
 
@@ -136,6 +153,10 @@ func (r *firewallRedirectResource) read(ctx context.Context, obj map[string]any,
 	mm.DestPort = diags.list(listVal(ctx, match, "dest_port"))
 	mm.Proto = diags.list(listVal(ctx, match, "proto"))
 	m.Match = mm
+
+	m.Reflection = boolVal(obj, "reflection")
+	m.ReflectionSrc = strVal(obj, "reflection_src")
+	m.ReflectionZone = diags.list(listVal(ctx, obj, "reflection_zone"))
 }
 
 func (r *firewallRedirectResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
@@ -149,12 +170,13 @@ func (r *firewallRedirectResource) Create(ctx context.Context, req resource.Crea
 	if resp.Diagnostics.HasError() {
 		return
 	}
-	obj, err := r.client.Post(ctx, "/"+firewallRedirectCollection, body)
+	obj, etag, err := r.client.Post(ctx, "/"+firewallRedirectCollection, body, "")
 	if err != nil {
-		resp.Diagnostics.AddError("Error creating firewall redirect", err.Error())
+		writeErr(&resp.Diagnostics, "creating", "firewall redirect", err)
 		return
 	}
 	r.read(ctx, obj, &plan, ds)
+	plan.ETag = types.StringValue(etag)
 	resp.Diagnostics.Append(resp.State.Set(ctx, &plan)...)
 }
 
@@ -164,7 +186,7 @@ func (r *firewallRedirectResource) Read(ctx context.Context, req resource.ReadRe
 	if resp.Diagnostics.HasError() {
 		return
 	}
-	obj, found, err := r.client.GetObject(ctx, "/"+firewallRedirectCollection+"/"+state.ID.ValueString())
+	obj, etag, found, err := r.client.GetObject(ctx, "/"+firewallRedirectCollection+"/"+state.ID.ValueString())
 	if err != nil {
 		resp.Diagnostics.AddError("Error reading firewall redirect", err.Error())
 		return
@@ -175,12 +197,14 @@ func (r *firewallRedirectResource) Read(ctx context.Context, req resource.ReadRe
 	}
 	ds := newDiagsink(&resp.Diagnostics)
 	r.read(ctx, obj, &state, ds)
+	state.ETag = types.StringValue(etag)
 	resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)
 }
 
 func (r *firewallRedirectResource) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
-	var plan firewallRedirectModel
+	var plan, state firewallRedirectModel
 	resp.Diagnostics.Append(req.Plan.Get(ctx, &plan)...)
+	resp.Diagnostics.Append(req.State.Get(ctx, &state)...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
@@ -189,12 +213,13 @@ func (r *firewallRedirectResource) Update(ctx context.Context, req resource.Upda
 	if resp.Diagnostics.HasError() {
 		return
 	}
-	obj, err := r.client.Put(ctx, "/"+firewallRedirectCollection+"/"+plan.ID.ValueString(), body)
+	obj, etag, err := r.client.Put(ctx, "/"+firewallRedirectCollection+"/"+plan.ID.ValueString(), body, state.ETag.ValueString())
 	if err != nil {
-		resp.Diagnostics.AddError("Error updating firewall redirect", err.Error())
+		writeErr(&resp.Diagnostics, "updating", "firewall redirect", err)
 		return
 	}
 	r.read(ctx, obj, &plan, ds)
+	plan.ETag = types.StringValue(etag)
 	resp.Diagnostics.Append(resp.State.Set(ctx, &plan)...)
 }
 
@@ -204,8 +229,8 @@ func (r *firewallRedirectResource) Delete(ctx context.Context, req resource.Dele
 	if resp.Diagnostics.HasError() {
 		return
 	}
-	if err := r.client.Delete(ctx, "/"+firewallRedirectCollection+"/"+state.ID.ValueString()); err != nil {
-		resp.Diagnostics.AddError("Error deleting firewall redirect", err.Error())
+	if err := r.client.Delete(ctx, "/"+firewallRedirectCollection+"/"+state.ID.ValueString(), state.ETag.ValueString()); err != nil {
+		writeErr(&resp.Diagnostics, "deleting", "firewall redirect", err)
 	}
 }
 

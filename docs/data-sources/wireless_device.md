@@ -31,6 +31,7 @@ data "uapi_wireless_device" "radio0" {
 - `channel` (String) Channel number or 'auto'.
 - `country` (String) Regulatory country code.
 - `disabled` (Boolean) Whether the radio is disabled.
+- `etag` (String) Opaque ETag of the resource's current state.
 - `htmode` (String) HT/VHT/HE mode (e.g. HT20, VHT80).
 - `managed` (Boolean) Whether the underlying uci section is uapi-managed.
 - `txpower` (String) Transmit power in dBm.

@@ -29,6 +29,7 @@ func NewSystemTimeserverResource() resource.Resource {
 type systemTimeserverModel struct {
 	ID           types.String `tfsdk:"id"`
 	Managed      types.Bool   `tfsdk:"managed"`
+	ETag         types.String `tfsdk:"etag"`
 	Enabled      types.Bool   `tfsdk:"enabled"`
 	EnableServer types.Bool   `tfsdk:"enable_server"`
 	Interface    types.String `tfsdk:"interface"`
@@ -50,6 +51,7 @@ func (r *systemTimeserverResource) Schema(_ context.Context, _ resource.SchemaRe
 		Attributes: map[string]schema.Attribute{
 			"id":            computedIDAttribute(),
 			"managed":       managedAttribute(),
+			"etag":          etagAttribute(),
 			"enabled":       optionalComputedBool("Whether the NTP client is enabled. Defaults to true."),
 			"enable_server": optionalComputedBool("Whether to act as an NTP server for the local network. Defaults to false."),
 			"interface": schema.StringAttribute{
@@ -93,12 +95,13 @@ func (r *systemTimeserverResource) Create(ctx context.Context, req resource.Crea
 	if resp.Diagnostics.HasError() {
 		return
 	}
-	obj, err := r.client.Post(ctx, "/"+systemTimeserverCollection, body)
+	obj, etag, err := r.client.Post(ctx, "/"+systemTimeserverCollection, body, "")
 	if err != nil {
-		resp.Diagnostics.AddError("Error creating system timeserver", err.Error())
+		writeErr(&resp.Diagnostics, "creating", "system timeserver", err)
 		return
 	}
 	r.read(ctx, obj, &plan, ds)
+	plan.ETag = types.StringValue(etag)
 	resp.Diagnostics.Append(resp.State.Set(ctx, &plan)...)
 }
 
@@ -108,7 +111,7 @@ func (r *systemTimeserverResource) Read(ctx context.Context, req resource.ReadRe
 	if resp.Diagnostics.HasError() {
 		return
 	}
-	obj, found, err := r.client.GetObject(ctx, "/"+systemTimeserverCollection+"/"+state.ID.ValueString())
+	obj, etag, found, err := r.client.GetObject(ctx, "/"+systemTimeserverCollection+"/"+state.ID.ValueString())
 	if err != nil {
 		resp.Diagnostics.AddError("Error reading system timeserver", err.Error())
 		return
@@ -119,12 +122,14 @@ func (r *systemTimeserverResource) Read(ctx context.Context, req resource.ReadRe
 	}
 	ds := newDiagsink(&resp.Diagnostics)
 	r.read(ctx, obj, &state, ds)
+	state.ETag = types.StringValue(etag)
 	resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)
 }
 
 func (r *systemTimeserverResource) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
-	var plan systemTimeserverModel
+	var plan, state systemTimeserverModel
 	resp.Diagnostics.Append(req.Plan.Get(ctx, &plan)...)
+	resp.Diagnostics.Append(req.State.Get(ctx, &state)...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
@@ -133,12 +138,13 @@ func (r *systemTimeserverResource) Update(ctx context.Context, req resource.Upda
 	if resp.Diagnostics.HasError() {
 		return
 	}
-	obj, err := r.client.Put(ctx, "/"+systemTimeserverCollection+"/"+plan.ID.ValueString(), body)
+	obj, etag, err := r.client.Put(ctx, "/"+systemTimeserverCollection+"/"+plan.ID.ValueString(), body, state.ETag.ValueString())
 	if err != nil {
-		resp.Diagnostics.AddError("Error updating system timeserver", err.Error())
+		writeErr(&resp.Diagnostics, "updating", "system timeserver", err)
 		return
 	}
 	r.read(ctx, obj, &plan, ds)
+	plan.ETag = types.StringValue(etag)
 	resp.Diagnostics.Append(resp.State.Set(ctx, &plan)...)
 }
 
@@ -148,8 +154,8 @@ func (r *systemTimeserverResource) Delete(ctx context.Context, req resource.Dele
 	if resp.Diagnostics.HasError() {
 		return
 	}
-	if err := r.client.Delete(ctx, "/"+systemTimeserverCollection+"/"+state.ID.ValueString()); err != nil {
-		resp.Diagnostics.AddError("Error deleting system timeserver", err.Error())
+	if err := r.client.Delete(ctx, "/"+systemTimeserverCollection+"/"+state.ID.ValueString(), state.ETag.ValueString()); err != nil {
+		writeErr(&resp.Diagnostics, "deleting", "system timeserver", err)
 	}
 }
 

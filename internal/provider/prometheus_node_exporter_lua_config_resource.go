@@ -30,6 +30,7 @@ func NewPrometheusNodeExporterLuaConfigResource() resource.Resource {
 type prometheusNodeExporterLuaConfigModel struct {
 	ID              types.String `tfsdk:"id"`
 	Managed         types.Bool   `tfsdk:"managed"`
+	ETag            types.String `tfsdk:"etag"`
 	ListenIPv6      types.Bool   `tfsdk:"listen_ipv6"`
 	ListenInterface types.String `tfsdk:"listen_interface"`
 	ListenPort      types.String `tfsdk:"listen_port"`
@@ -68,6 +69,7 @@ func (r *prometheusNodeExporterLuaConfigResource) Schema(_ context.Context, _ re
 		Attributes: map[string]schema.Attribute{
 			"id":               computedIDAttribute(),
 			"managed":          managedAttribute(),
+			"etag":             etagAttribute(),
 			"listen_ipv6":      optionalComputedBool("Listen on IPv6 as well as IPv4. Defaults to false."),
 			"listen_interface": schema.StringAttribute{Optional: true, Description: "Network interface to bind the exporter to."},
 			"listen_port":      schema.StringAttribute{Optional: true, Description: "TCP port the exporter listens on."},
@@ -148,12 +150,13 @@ func (r *prometheusNodeExporterLuaConfigResource) Create(ctx context.Context, re
 	if resp.Diagnostics.HasError() {
 		return
 	}
-	obj, err := r.client.Patch(ctx, prometheusNodeExporterLuaConfigPath, r.body(ctx, plan))
+	obj, etag, err := r.client.Patch(ctx, prometheusNodeExporterLuaConfigPath, r.body(ctx, plan), "")
 	if err != nil {
-		resp.Diagnostics.AddError("Error configuring prometheus-node-exporter-lua settings", err.Error())
+		writeErr(&resp.Diagnostics, "configuring", "prometheus-node-exporter-lua settings", err)
 		return
 	}
 	r.read(ctx, obj, &plan)
+	plan.ETag = types.StringValue(etag)
 	resp.Diagnostics.Append(resp.State.Set(ctx, &plan)...)
 }
 
@@ -163,7 +166,7 @@ func (r *prometheusNodeExporterLuaConfigResource) Read(ctx context.Context, req 
 	if resp.Diagnostics.HasError() {
 		return
 	}
-	obj, found, err := r.client.GetObject(ctx, prometheusNodeExporterLuaConfigPath)
+	obj, etag, found, err := r.client.GetObject(ctx, prometheusNodeExporterLuaConfigPath)
 	if err != nil {
 		resp.Diagnostics.AddError("Error reading prometheus-node-exporter-lua settings", err.Error())
 		return
@@ -173,21 +176,24 @@ func (r *prometheusNodeExporterLuaConfigResource) Read(ctx context.Context, req 
 		return
 	}
 	r.read(ctx, obj, &state)
+	state.ETag = types.StringValue(etag)
 	resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)
 }
 
 func (r *prometheusNodeExporterLuaConfigResource) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
-	var plan prometheusNodeExporterLuaConfigModel
+	var plan, state prometheusNodeExporterLuaConfigModel
 	resp.Diagnostics.Append(req.Plan.Get(ctx, &plan)...)
+	resp.Diagnostics.Append(req.State.Get(ctx, &state)...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
-	obj, err := r.client.Patch(ctx, prometheusNodeExporterLuaConfigPath, r.body(ctx, plan))
+	obj, etag, err := r.client.Patch(ctx, prometheusNodeExporterLuaConfigPath, r.body(ctx, plan), state.ETag.ValueString())
 	if err != nil {
-		resp.Diagnostics.AddError("Error updating prometheus-node-exporter-lua settings", err.Error())
+		writeErr(&resp.Diagnostics, "updating", "prometheus-node-exporter-lua settings", err)
 		return
 	}
 	r.read(ctx, obj, &plan)
+	plan.ETag = types.StringValue(etag)
 	resp.Diagnostics.Append(resp.State.Set(ctx, &plan)...)
 }
 

@@ -30,6 +30,7 @@ func NewDhcpOdhcpdResource() resource.Resource {
 type dhcpOdhcpdModel struct {
 	ID           types.String `tfsdk:"id"`
 	Managed      types.Bool   `tfsdk:"managed"`
+	ETag         types.String `tfsdk:"etag"`
 	Maindhcp     types.Bool   `tfsdk:"maindhcp"`
 	Leasefile    types.String `tfsdk:"leasefile"`
 	Leasetrigger types.String `tfsdk:"leasetrigger"`
@@ -52,6 +53,7 @@ func (r *dhcpOdhcpdResource) Schema(_ context.Context, _ resource.SchemaRequest,
 		Attributes: map[string]schema.Attribute{
 			"id":       computedIDAttribute(),
 			"managed":  managedAttribute(),
+			"etag":     etagAttribute(),
 			"maindhcp": optionalComputedBool("Let odhcpd serve IPv4 DHCP instead of dnsmasq. Defaults to false."),
 			"leasefile": schema.StringAttribute{
 				Optional:    true,
@@ -93,12 +95,13 @@ func (r *dhcpOdhcpdResource) Create(ctx context.Context, req resource.CreateRequ
 	if resp.Diagnostics.HasError() {
 		return
 	}
-	obj, err := r.client.Patch(ctx, dhcpOdhcpdPath, r.body(ctx, plan))
+	obj, etag, err := r.client.Patch(ctx, dhcpOdhcpdPath, r.body(ctx, plan), "")
 	if err != nil {
-		resp.Diagnostics.AddError("Error configuring odhcpd settings", err.Error())
+		writeErr(&resp.Diagnostics, "configuring", "odhcpd settings", err)
 		return
 	}
 	r.read(ctx, obj, &plan)
+	plan.ETag = types.StringValue(etag)
 	resp.Diagnostics.Append(resp.State.Set(ctx, &plan)...)
 }
 
@@ -108,7 +111,7 @@ func (r *dhcpOdhcpdResource) Read(ctx context.Context, req resource.ReadRequest,
 	if resp.Diagnostics.HasError() {
 		return
 	}
-	obj, found, err := r.client.GetObject(ctx, dhcpOdhcpdPath)
+	obj, etag, found, err := r.client.GetObject(ctx, dhcpOdhcpdPath)
 	if err != nil {
 		resp.Diagnostics.AddError("Error reading odhcpd settings", err.Error())
 		return
@@ -118,21 +121,24 @@ func (r *dhcpOdhcpdResource) Read(ctx context.Context, req resource.ReadRequest,
 		return
 	}
 	r.read(ctx, obj, &state)
+	state.ETag = types.StringValue(etag)
 	resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)
 }
 
 func (r *dhcpOdhcpdResource) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
-	var plan dhcpOdhcpdModel
+	var plan, state dhcpOdhcpdModel
 	resp.Diagnostics.Append(req.Plan.Get(ctx, &plan)...)
+	resp.Diagnostics.Append(req.State.Get(ctx, &state)...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
-	obj, err := r.client.Patch(ctx, dhcpOdhcpdPath, r.body(ctx, plan))
+	obj, etag, err := r.client.Patch(ctx, dhcpOdhcpdPath, r.body(ctx, plan), state.ETag.ValueString())
 	if err != nil {
-		resp.Diagnostics.AddError("Error updating odhcpd settings", err.Error())
+		writeErr(&resp.Diagnostics, "updating", "odhcpd settings", err)
 		return
 	}
 	r.read(ctx, obj, &plan)
+	plan.ETag = types.StringValue(etag)
 	resp.Diagnostics.Append(resp.State.Set(ctx, &plan)...)
 }
 

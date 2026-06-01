@@ -29,6 +29,7 @@ data "uapi_sqm_queue" "wan" {
 
 - `download` (String) Download rate limit in kbit/s.
 - `enabled` (Boolean) Whether the queue is enabled.
+- `etag` (String) Opaque ETag of the resource's current state.
 - `interface` (String) Network interface the queue is attached to.
 - `linklayer` (String) Link layer adaptation: none, ethernet, or atm.
 - `managed` (Boolean) Whether the underlying uci section is uapi-managed.

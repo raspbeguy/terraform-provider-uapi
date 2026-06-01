@@ -30,6 +30,7 @@ func NewSystemResource() resource.Resource {
 type systemModel struct {
 	ID          types.String `tfsdk:"id"`
 	Managed     types.Bool   `tfsdk:"managed"`
+	ETag        types.String `tfsdk:"etag"`
 	Hostname    types.String `tfsdk:"hostname"`
 	Description types.String `tfsdk:"description"`
 	Notes       types.String `tfsdk:"notes"`
@@ -58,6 +59,7 @@ func (r *systemResource) Schema(_ context.Context, _ resource.SchemaRequest, res
 		Attributes: map[string]schema.Attribute{
 			"id":           computedIDAttribute(),
 			"managed":      managedAttribute(),
+			"etag":         etagAttribute(),
 			"hostname":     optionalComputedString("System hostname."),
 			"description":  optionalComputedString("Short device description."),
 			"notes":        optionalComputedString("Free-form notes."),
@@ -108,12 +110,13 @@ func (r *systemResource) Create(ctx context.Context, req resource.CreateRequest,
 	if resp.Diagnostics.HasError() {
 		return
 	}
-	obj, err := r.client.Patch(ctx, systemPath, r.body(ctx, plan))
+	obj, etag, err := r.client.Patch(ctx, systemPath, r.body(ctx, plan), "")
 	if err != nil {
-		resp.Diagnostics.AddError("Error configuring system settings", err.Error())
+		writeErr(&resp.Diagnostics, "configuring", "system settings", err)
 		return
 	}
 	r.read(ctx, obj, &plan)
+	plan.ETag = types.StringValue(etag)
 	resp.Diagnostics.Append(resp.State.Set(ctx, &plan)...)
 }
 
@@ -123,7 +126,7 @@ func (r *systemResource) Read(ctx context.Context, req resource.ReadRequest, res
 	if resp.Diagnostics.HasError() {
 		return
 	}
-	obj, found, err := r.client.GetObject(ctx, systemPath)
+	obj, etag, found, err := r.client.GetObject(ctx, systemPath)
 	if err != nil {
 		resp.Diagnostics.AddError("Error reading system settings", err.Error())
 		return
@@ -133,21 +136,24 @@ func (r *systemResource) Read(ctx context.Context, req resource.ReadRequest, res
 		return
 	}
 	r.read(ctx, obj, &state)
+	state.ETag = types.StringValue(etag)
 	resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)
 }
 
 func (r *systemResource) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
-	var plan systemModel
+	var plan, state systemModel
 	resp.Diagnostics.Append(req.Plan.Get(ctx, &plan)...)
+	resp.Diagnostics.Append(req.State.Get(ctx, &state)...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
-	obj, err := r.client.Patch(ctx, systemPath, r.body(ctx, plan))
+	obj, etag, err := r.client.Patch(ctx, systemPath, r.body(ctx, plan), state.ETag.ValueString())
 	if err != nil {
-		resp.Diagnostics.AddError("Error updating system settings", err.Error())
+		writeErr(&resp.Diagnostics, "updating", "system settings", err)
 		return
 	}
 	r.read(ctx, obj, &plan)
+	plan.ETag = types.StringValue(etag)
 	resp.Diagnostics.Append(resp.State.Set(ctx, &plan)...)
 }
 

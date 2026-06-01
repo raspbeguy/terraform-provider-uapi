@@ -96,7 +96,7 @@ func (r *packageFeedResource) Create(ctx context.Context, req resource.CreateReq
 		return
 	}
 	body := map[string]any{"name": plan.Name.ValueString(), "url": plan.URL.ValueString()}
-	obj, err := r.client.Post(ctx, "/"+packageFeedCollection, body)
+	obj, _, err := r.client.Post(ctx, "/"+packageFeedCollection, body, "")
 	if err != nil {
 		resp.Diagnostics.AddError("Error creating package feed", err.Error())
 		return
@@ -111,7 +111,7 @@ func (r *packageFeedResource) Read(ctx context.Context, req resource.ReadRequest
 	if resp.Diagnostics.HasError() {
 		return
 	}
-	obj, found, err := r.client.GetObject(ctx, "/"+packageFeedCollection+"/"+state.ID.ValueString())
+	obj, _, found, err := r.client.GetObject(ctx, "/"+packageFeedCollection+"/"+state.ID.ValueString())
 	if err != nil {
 		resp.Diagnostics.AddError("Error reading package feed", err.Error())
 		return
@@ -132,7 +132,7 @@ func (r *packageFeedResource) Update(ctx context.Context, req resource.UpdateReq
 	if resp.Diagnostics.HasError() {
 		return
 	}
-	obj, found, err := r.client.GetObject(ctx, "/"+packageFeedCollection+"/"+plan.ID.ValueString())
+	obj, _, found, err := r.client.GetObject(ctx, "/"+packageFeedCollection+"/"+plan.ID.ValueString())
 	if err != nil {
 		resp.Diagnostics.AddError("Error reading package feed", err.Error())
 		return
@@ -151,7 +151,7 @@ func (r *packageFeedResource) Delete(ctx context.Context, req resource.DeleteReq
 	if resp.Diagnostics.HasError() {
 		return
 	}
-	if err := r.client.Delete(ctx, "/"+packageFeedCollection+"/"+state.ID.ValueString()); err != nil {
+	if err := r.client.Delete(ctx, "/"+packageFeedCollection+"/"+state.ID.ValueString(), ""); err != nil {
 		resp.Diagnostics.AddError("Error deleting package feed", err.Error())
 	}
 }

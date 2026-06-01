@@ -27,6 +27,7 @@ data "uapi_network_route" "to_dmz" {
 
 ### Read-Only
 
+- `etag` (String) Opaque ETag of the resource's current state.
 - `gateway` (String) Next-hop gateway IPv4 address.
 - `interface` (String) Logical network interface the route is bound to.
 - `managed` (Boolean) Whether the underlying uci section is uapi-managed.

@@ -27,6 +27,7 @@ data "uapi_network_device" "br_lan" {
 
 ### Read-Only
 
+- `etag` (String) Opaque ETag of the resource's current state.
 - `ifname` (String) Base interface name for VLAN/macvlan devices.
 - `ipv6` (Boolean) Whether IPv6 is enabled on the device.
 - `macaddr` (String) Override MAC address.

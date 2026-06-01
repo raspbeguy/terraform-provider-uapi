@@ -29,6 +29,7 @@ data "uapi_firewall_forwarding" "lan_to_wan" {
 
 - `dest` (String) Destination zone name.
 - `enabled` (Boolean) Whether the forwarding is active.
+- `etag` (String) Opaque ETag of the resource's current state.
 - `family` (String) Address family: any, ipv4, or ipv6.
 - `managed` (Boolean) Whether the underlying uci section is uapi-managed.
 - `src` (String) Source zone name.

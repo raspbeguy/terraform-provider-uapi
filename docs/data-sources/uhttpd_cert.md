@@ -31,6 +31,7 @@ data "uapi_uhttpd_cert" "router" {
 - `commonname` (String) Certificate common name (CN).
 - `country` (String) Two-letter country code (C).
 - `days` (String) Certificate validity in days.
+- `etag` (String) Opaque ETag of the resource's current state.
 - `location` (String) Certificate locality (L).
 - `managed` (Boolean) Whether the underlying uci section is uapi-managed.
 - `organization` (String) Certificate organization (O).

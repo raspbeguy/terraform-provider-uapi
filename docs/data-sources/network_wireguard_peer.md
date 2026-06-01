@@ -32,6 +32,7 @@ data "uapi_network_wireguard_peer" "laptop" {
 - `disabled` (Boolean) Whether this peer is disabled.
 - `endpoint_host` (String) Peer endpoint hostname or IP address.
 - `endpoint_port` (String) Peer endpoint UDP port (1-65535).
+- `etag` (String) Opaque ETag of the resource's current state.
 - `has_preshared_key` (Boolean) Whether a preshared key is configured on the router.
 - `interface` (String) Parent WireGuard interface name.
 - `managed` (Boolean) Whether the underlying uci section is uapi-managed.

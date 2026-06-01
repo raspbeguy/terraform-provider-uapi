@@ -29,6 +29,7 @@ func NewNetworkRouteResource() resource.Resource {
 type networkRouteModel struct {
 	ID        types.String `tfsdk:"id"`
 	Managed   types.Bool   `tfsdk:"managed"`
+	ETag      types.String `tfsdk:"etag"`
 	Interface types.String `tfsdk:"interface"`
 	Target    types.String `tfsdk:"target"`
 	Netmask   types.String `tfsdk:"netmask"`
@@ -54,6 +55,7 @@ func (r *networkRouteResource) Schema(_ context.Context, _ resource.SchemaReques
 		Attributes: map[string]schema.Attribute{
 			"id":      computedIDAttribute(),
 			"managed": managedAttribute(),
+			"etag":    etagAttribute(),
 			"interface": schema.StringAttribute{
 				Optional:    true,
 				Description: "Logical network interface the route is bound to. Must reference an existing interface for unicast routes.",
@@ -125,12 +127,13 @@ func (r *networkRouteResource) Create(ctx context.Context, req resource.CreateRe
 	if resp.Diagnostics.HasError() {
 		return
 	}
-	obj, err := r.client.Post(ctx, "/"+networkRouteCollection, r.body(ctx, plan))
+	obj, etag, err := r.client.Post(ctx, "/"+networkRouteCollection, r.body(ctx, plan), "")
 	if err != nil {
-		resp.Diagnostics.AddError("Error creating network route", err.Error())
+		writeErr(&resp.Diagnostics, "creating", "network route", err)
 		return
 	}
 	r.read(ctx, obj, &plan)
+	plan.ETag = types.StringValue(etag)
 	resp.Diagnostics.Append(resp.State.Set(ctx, &plan)...)
 }
 
@@ -140,7 +143,7 @@ func (r *networkRouteResource) Read(ctx context.Context, req resource.ReadReques
 	if resp.Diagnostics.HasError() {
 		return
 	}
-	obj, found, err := r.client.GetObject(ctx, "/"+networkRouteCollection+"/"+state.ID.ValueString())
+	obj, etag, found, err := r.client.GetObject(ctx, "/"+networkRouteCollection+"/"+state.ID.ValueString())
 	if err != nil {
 		resp.Diagnostics.AddError("Error reading network route", err.Error())
 		return
@@ -150,21 +153,24 @@ func (r *networkRouteResource) Read(ctx context.Context, req resource.ReadReques
 		return
 	}
 	r.read(ctx, obj, &state)
+	state.ETag = types.StringValue(etag)
 	resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)
 }
 
 func (r *networkRouteResource) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
-	var plan networkRouteModel
+	var plan, state networkRouteModel
 	resp.Diagnostics.Append(req.Plan.Get(ctx, &plan)...)
+	resp.Diagnostics.Append(req.State.Get(ctx, &state)...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
-	obj, err := r.client.Put(ctx, "/"+networkRouteCollection+"/"+plan.ID.ValueString(), r.body(ctx, plan))
+	obj, etag, err := r.client.Put(ctx, "/"+networkRouteCollection+"/"+plan.ID.ValueString(), r.body(ctx, plan), state.ETag.ValueString())
 	if err != nil {
-		resp.Diagnostics.AddError("Error updating network route", err.Error())
+		writeErr(&resp.Diagnostics, "updating", "network route", err)
 		return
 	}
 	r.read(ctx, obj, &plan)
+	plan.ETag = types.StringValue(etag)
 	resp.Diagnostics.Append(resp.State.Set(ctx, &plan)...)
 }
 
@@ -174,8 +180,8 @@ func (r *networkRouteResource) Delete(ctx context.Context, req resource.DeleteRe
 	if resp.Diagnostics.HasError() {
 		return
 	}
-	if err := r.client.Delete(ctx, "/"+networkRouteCollection+"/"+state.ID.ValueString()); err != nil {
-		resp.Diagnostics.AddError("Error deleting network route", err.Error())
+	if err := r.client.Delete(ctx, "/"+networkRouteCollection+"/"+state.ID.ValueString(), state.ETag.ValueString()); err != nil {
+		writeErr(&resp.Diagnostics, "deleting", "network route", err)
 	}
 }
 

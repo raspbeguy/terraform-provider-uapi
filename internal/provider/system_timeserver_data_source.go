@@ -5,6 +5,7 @@ import (
 
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	dsschema "github.com/hashicorp/terraform-plugin-framework/datasource/schema"
+	"github.com/hashicorp/terraform-plugin-framework/types"
 
 	"github.com/raspbeguy/terraform-provider-uapi/internal/client"
 )
@@ -32,6 +33,7 @@ func (d *systemTimeserverDataSource) Schema(_ context.Context, _ datasource.Sche
 		Attributes: map[string]dsschema.Attribute{
 			"id":            dsIDAttribute(),
 			"managed":       dsManagedAttribute(),
+			"etag":          dsComputedString("Opaque ETag of the resource's current state."),
 			"enabled":       dsComputedBool("Whether the NTP client is enabled."),
 			"enable_server": dsComputedBool("Whether the router acts as an NTP server for the local network."),
 			"interface":     dsComputedString("Network interface the NTP server binds to."),
@@ -47,7 +49,7 @@ func (d *systemTimeserverDataSource) Read(ctx context.Context, req datasource.Re
 	if resp.Diagnostics.HasError() {
 		return
 	}
-	obj, found, err := d.client.GetObject(ctx, "/"+systemTimeserverCollection+"/"+m.ID.ValueString())
+	obj, etag, found, err := d.client.GetObject(ctx, "/"+systemTimeserverCollection+"/"+m.ID.ValueString())
 	if err != nil {
 		resp.Diagnostics.AddError("Error reading system timeserver", err.Error())
 		return
@@ -58,5 +60,6 @@ func (d *systemTimeserverDataSource) Read(ctx context.Context, req datasource.Re
 	}
 	ds := newDiagsink(&resp.Diagnostics)
 	(&systemTimeserverResource{}).read(ctx, obj, &m, ds)
+	m.ETag = types.StringValue(etag)
 	resp.Diagnostics.Append(resp.State.Set(ctx, &m)...)
 }

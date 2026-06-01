@@ -28,9 +28,13 @@ data "uapi_firewall_redirect" "web" {
 ### Read-Only
 
 - `enabled` (Boolean) Whether the redirect is active.
+- `etag` (String) Opaque ETag of the resource's current state.
 - `managed` (Boolean) Whether the underlying uci section is uapi-managed.
 - `match` (Attributes) Match conditions for the redirect. (see [below for nested schema](#nestedatt--match))
 - `name` (String) Redirect name.
+- `reflection` (Boolean) Whether NAT loopback / hairpinning is enabled for this redirect.
+- `reflection_src` (String) Source address used for hairpinned packets: internal or external.
+- `reflection_zone` (List of String) Firewall zones in which NAT reflection is applied.
 - `target` (String) Redirect type: DNAT or SNAT.
 
 <a id="nestedatt--match"></a>

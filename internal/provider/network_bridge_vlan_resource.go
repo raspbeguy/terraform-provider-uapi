@@ -29,6 +29,7 @@ func NewNetworkBridgeVlanResource() resource.Resource {
 type networkBridgeVlanModel struct {
 	ID      types.String `tfsdk:"id"`
 	Managed types.Bool   `tfsdk:"managed"`
+	ETag    types.String `tfsdk:"etag"`
 	Device  types.String `tfsdk:"device"`
 	Vlan    types.String `tfsdk:"vlan"`
 	Ports   types.List   `tfsdk:"ports"`
@@ -48,6 +49,7 @@ func (r *networkBridgeVlanResource) Schema(_ context.Context, _ resource.SchemaR
 		Attributes: map[string]schema.Attribute{
 			"id":      computedIDAttribute(),
 			"managed": managedAttribute(),
+			"etag":    etagAttribute(),
 			"device": schema.StringAttribute{
 				Required:    true,
 				Description: "Bridge device name this VLAN belongs to. Must reference an existing bridge device.",
@@ -88,12 +90,13 @@ func (r *networkBridgeVlanResource) Create(ctx context.Context, req resource.Cre
 	if resp.Diagnostics.HasError() {
 		return
 	}
-	obj, err := r.client.Post(ctx, "/"+networkBridgeVlanCollection, body)
+	obj, etag, err := r.client.Post(ctx, "/"+networkBridgeVlanCollection, body, "")
 	if err != nil {
-		resp.Diagnostics.AddError("Error creating network bridge VLAN", err.Error())
+		writeErr(&resp.Diagnostics, "creating", "network bridge VLAN", err)
 		return
 	}
 	r.read(ctx, obj, &plan, ds)
+	plan.ETag = types.StringValue(etag)
 	resp.Diagnostics.Append(resp.State.Set(ctx, &plan)...)
 }
 
@@ -103,7 +106,7 @@ func (r *networkBridgeVlanResource) Read(ctx context.Context, req resource.ReadR
 	if resp.Diagnostics.HasError() {
 		return
 	}
-	obj, found, err := r.client.GetObject(ctx, "/"+networkBridgeVlanCollection+"/"+state.ID.ValueString())
+	obj, etag, found, err := r.client.GetObject(ctx, "/"+networkBridgeVlanCollection+"/"+state.ID.ValueString())
 	if err != nil {
 		resp.Diagnostics.AddError("Error reading network bridge VLAN", err.Error())
 		return
@@ -114,12 +117,14 @@ func (r *networkBridgeVlanResource) Read(ctx context.Context, req resource.ReadR
 	}
 	ds := newDiagsink(&resp.Diagnostics)
 	r.read(ctx, obj, &state, ds)
+	state.ETag = types.StringValue(etag)
 	resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)
 }
 
 func (r *networkBridgeVlanResource) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
-	var plan networkBridgeVlanModel
+	var plan, state networkBridgeVlanModel
 	resp.Diagnostics.Append(req.Plan.Get(ctx, &plan)...)
+	resp.Diagnostics.Append(req.State.Get(ctx, &state)...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
@@ -128,12 +133,13 @@ func (r *networkBridgeVlanResource) Update(ctx context.Context, req resource.Upd
 	if resp.Diagnostics.HasError() {
 		return
 	}
-	obj, err := r.client.Put(ctx, "/"+networkBridgeVlanCollection+"/"+plan.ID.ValueString(), body)
+	obj, etag, err := r.client.Put(ctx, "/"+networkBridgeVlanCollection+"/"+plan.ID.ValueString(), body, state.ETag.ValueString())
 	if err != nil {
-		resp.Diagnostics.AddError("Error updating network bridge VLAN", err.Error())
+		writeErr(&resp.Diagnostics, "updating", "network bridge VLAN", err)
 		return
 	}
 	r.read(ctx, obj, &plan, ds)
+	plan.ETag = types.StringValue(etag)
 	resp.Diagnostics.Append(resp.State.Set(ctx, &plan)...)
 }
 
@@ -143,8 +149,8 @@ func (r *networkBridgeVlanResource) Delete(ctx context.Context, req resource.Del
 	if resp.Diagnostics.HasError() {
 		return
 	}
-	if err := r.client.Delete(ctx, "/"+networkBridgeVlanCollection+"/"+state.ID.ValueString()); err != nil {
-		resp.Diagnostics.AddError("Error deleting network bridge VLAN", err.Error())
+	if err := r.client.Delete(ctx, "/"+networkBridgeVlanCollection+"/"+state.ID.ValueString(), state.ETag.ValueString()); err != nil {
+		writeErr(&resp.Diagnostics, "deleting", "network bridge VLAN", err)
 	}
 }
 

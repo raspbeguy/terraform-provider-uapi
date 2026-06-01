@@ -27,17 +27,23 @@ resource "uapi_dhcp_host" "printer" {
 ### Required
 
 - `ip` (String) IPv4 or IPv6 address to assign.
-- `mac` (String) Client MAC address (aa:bb:cc:dd:ee:ff).
 
 ### Optional
 
+- `broadcast` (Boolean) Force broadcast replies for clients that need it. Defaults to false.
 - `dns` (Boolean) Add a DNS entry for the host. Defaults to false.
+- `duid` (String) Client DUID for a DHCPv6 reservation. Either mac or duid is required.
+- `hostid` (String) Static IPv6 host id hint (suffix), like '::42'.
+- `instance` (String) Pin this reservation to a specific dhcp/dnsmasq instance (section name).
 - `leasetime` (String) Lease duration like '12h', '30m', '1d', or seconds.
+- `mac` (String) Primary client MAC address for an IPv4 reservation (aa:bb:cc:dd:ee:ff). Either mac or duid is required.
+- `mac_aliases` (List of String) Additional MAC addresses sharing the same reservation.
 - `name` (String) Hostname for the static lease.
 - `tag` (String) dnsmasq tag to apply to the host.
 
 ### Read-Only
 
+- `etag` (String) Opaque ETag of the resource's current state, used for If-Match optimistic concurrency.
 - `id` (String) Stable resource id assigned by uapi (a prefixed ULID).
 - `managed` (Boolean) Whether the underlying uci section is uapi-managed.
 

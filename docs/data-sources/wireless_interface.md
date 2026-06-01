@@ -30,6 +30,7 @@ data "uapi_wireless_interface" "home" {
 - `device` (String) Wireless radio id this interface belongs to.
 - `disabled` (Boolean) Whether this SSID is disabled.
 - `encryption` (String) Encryption suite (none, psk2, sae, wpa3, ...).
+- `etag` (String) Opaque ETag of the resource's current state.
 - `has_key` (Boolean) Whether a key is configured on the router.
 - `hidden` (Boolean) Whether the SSID is hidden.
 - `isolate` (Boolean) Whether clients on this SSID are isolated.
@@ -37,4 +38,19 @@ data "uapi_wireless_interface" "home" {
 - `managed` (Boolean) Whether the underlying uci section is uapi-managed.
 - `mode` (String) Operating mode: ap, sta, adhoc, wds, monitor, or mesh.
 - `network` (String) Network interface this SSID is bridged to.
+- `runtime` (Attributes) Live iwinfo-derived runtime state (read-only). (see [below for nested schema](#nestedatt--runtime))
 - `ssid` (String) Network name (SSID).
+
+<a id="nestedatt--runtime"></a>
+### Nested Schema for `runtime`
+
+Read-Only:
+
+- `assoclist_count` (Number) Number of associated clients.
+- `bssid` (String) BSSID.
+- `channel` (Number) Operating channel.
+- `frequency` (Number) Operating frequency (MHz).
+- `ifname` (String) Kernel wireless device name.
+- `noise` (Number) Noise floor (dBm).
+- `signal` (Number) Signal level (dBm).
+- `txpower_actual` (Number) Actual transmit power (dBm).

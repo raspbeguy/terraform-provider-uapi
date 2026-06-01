@@ -31,14 +31,20 @@ func (d *dhcpHostDataSource) Schema(_ context.Context, _ datasource.SchemaReques
 	resp.Schema = dsschema.Schema{
 		Description: "Look up a static DHCP lease by id.",
 		Attributes: map[string]dsschema.Attribute{
-			"id":        dsIDAttribute(),
-			"managed":   dsManagedAttribute(),
-			"name":      dsComputedString("Hostname for the static lease."),
-			"mac":       dsComputedString("Client MAC address."),
-			"ip":        dsComputedString("Assigned IPv4 or IPv6 address."),
-			"leasetime": dsComputedString("Lease duration like '12h', '30m', '1d', or seconds."),
-			"tag":       dsComputedString("dnsmasq tag applied to the host."),
-			"dns":       dsComputedBool("Whether a DNS entry is added for the host."),
+			"id":          dsIDAttribute(),
+			"managed":     dsManagedAttribute(),
+			"etag":        dsComputedString("Opaque concurrency token for the host."),
+			"name":        dsComputedString("Hostname for the static lease."),
+			"mac":         dsComputedString("Primary client MAC address for an IPv4 reservation."),
+			"mac_aliases": dsComputedStringList("Additional MAC addresses sharing the same reservation."),
+			"duid":        dsComputedString("Client DUID for a DHCPv6 reservation."),
+			"hostid":      dsComputedString("Static IPv6 host id hint (suffix)."),
+			"ip":          dsComputedString("Assigned IPv4 or IPv6 address."),
+			"leasetime":   dsComputedString("Lease duration like '12h', '30m', '1d', or seconds."),
+			"tag":         dsComputedString("dnsmasq tag applied to the host."),
+			"dns":         dsComputedBool("Whether a DNS entry is added for the host."),
+			"broadcast":   dsComputedBool("Whether broadcast replies are forced for the host."),
+			"instance":    dsComputedString("dhcp/dnsmasq instance the reservation is pinned to."),
 		},
 	}
 }
@@ -49,7 +55,7 @@ func (d *dhcpHostDataSource) Read(ctx context.Context, req datasource.ReadReques
 	if resp.Diagnostics.HasError() {
 		return
 	}
-	obj, found, err := d.client.GetObject(ctx, "/"+dhcpHostCollection+"/"+m.ID.ValueString())
+	obj, etag, found, err := d.client.GetObject(ctx, "/"+dhcpHostCollection+"/"+m.ID.ValueString())
 	if err != nil {
 		resp.Diagnostics.AddError("Error reading dhcp host", err.Error())
 		return
@@ -58,7 +64,9 @@ func (d *dhcpHostDataSource) Read(ctx context.Context, req datasource.ReadReques
 		resp.Diagnostics.AddError("DHCP host not found", "No dhcp host with id "+m.ID.ValueString())
 		return
 	}
-	(&dhcpHostResource{}).read(ctx, obj, &m)
+	ds := newDiagsink(&resp.Diagnostics)
+	(&dhcpHostResource{}).read(ctx, obj, &m, ds)
+	m.ETag = types.StringValue(etag)
 	resp.Diagnostics.Append(resp.State.Set(ctx, &m)...)
 }
 

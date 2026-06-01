@@ -5,6 +5,7 @@ import (
 
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	dsschema "github.com/hashicorp/terraform-plugin-framework/datasource/schema"
+	"github.com/hashicorp/terraform-plugin-framework/types"
 
 	"github.com/raspbeguy/terraform-provider-uapi/internal/client"
 )
@@ -32,6 +33,7 @@ func (d *firewallForwardingDataSource) Schema(_ context.Context, _ datasource.Sc
 		Attributes: map[string]dsschema.Attribute{
 			"id":      dsIDAttribute(),
 			"managed": dsManagedAttribute(),
+			"etag":    dsComputedString("Opaque ETag of the resource's current state."),
 			"src":     dsComputedString("Source zone name."),
 			"dest":    dsComputedString("Destination zone name."),
 			"family":  dsComputedString("Address family: any, ipv4, or ipv6."),
@@ -46,7 +48,7 @@ func (d *firewallForwardingDataSource) Read(ctx context.Context, req datasource.
 	if resp.Diagnostics.HasError() {
 		return
 	}
-	obj, found, err := d.client.GetObject(ctx, "/"+firewallForwardingCollection+"/"+m.ID.ValueString())
+	obj, etag, found, err := d.client.GetObject(ctx, "/"+firewallForwardingCollection+"/"+m.ID.ValueString())
 	if err != nil {
 		resp.Diagnostics.AddError("Error reading firewall forwarding", err.Error())
 		return
@@ -56,5 +58,6 @@ func (d *firewallForwardingDataSource) Read(ctx context.Context, req datasource.
 		return
 	}
 	(&firewallForwardingResource{}).read(ctx, obj, &m)
+	m.ETag = types.StringValue(etag)
 	resp.Diagnostics.Append(resp.State.Set(ctx, &m)...)
 }

@@ -29,6 +29,7 @@ func NewUhttpdCertResource() resource.Resource {
 type uhttpdCertModel struct {
 	ID           types.String `tfsdk:"id"`
 	Managed      types.Bool   `tfsdk:"managed"`
+	ETag         types.String `tfsdk:"etag"`
 	Days         types.String `tfsdk:"days"`
 	Bits         types.String `tfsdk:"bits"`
 	CommonName   types.String `tfsdk:"commonname"`
@@ -52,6 +53,7 @@ func (r *uhttpdCertResource) Schema(_ context.Context, _ resource.SchemaRequest,
 		Attributes: map[string]schema.Attribute{
 			"id":      computedIDAttribute(),
 			"managed": managedAttribute(),
+			"etag":    etagAttribute(),
 			"commonname": schema.StringAttribute{
 				Required:    true,
 				Description: "Certificate common name (CN).",
@@ -114,12 +116,13 @@ func (r *uhttpdCertResource) Create(ctx context.Context, req resource.CreateRequ
 	if resp.Diagnostics.HasError() {
 		return
 	}
-	obj, err := r.client.Post(ctx, "/"+uhttpdCertCollection, r.body(plan))
+	obj, etag, err := r.client.Post(ctx, "/"+uhttpdCertCollection, r.body(plan), "")
 	if err != nil {
-		resp.Diagnostics.AddError("Error creating uhttpd certificate", err.Error())
+		writeErr(&resp.Diagnostics, "creating", "uhttpd certificate", err)
 		return
 	}
 	r.read(ctx, obj, &plan)
+	plan.ETag = types.StringValue(etag)
 	resp.Diagnostics.Append(resp.State.Set(ctx, &plan)...)
 }
 
@@ -129,7 +132,7 @@ func (r *uhttpdCertResource) Read(ctx context.Context, req resource.ReadRequest,
 	if resp.Diagnostics.HasError() {
 		return
 	}
-	obj, found, err := r.client.GetObject(ctx, "/"+uhttpdCertCollection+"/"+state.ID.ValueString())
+	obj, etag, found, err := r.client.GetObject(ctx, "/"+uhttpdCertCollection+"/"+state.ID.ValueString())
 	if err != nil {
 		resp.Diagnostics.AddError("Error reading uhttpd certificate", err.Error())
 		return
@@ -139,21 +142,24 @@ func (r *uhttpdCertResource) Read(ctx context.Context, req resource.ReadRequest,
 		return
 	}
 	r.read(ctx, obj, &state)
+	state.ETag = types.StringValue(etag)
 	resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)
 }
 
 func (r *uhttpdCertResource) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
-	var plan uhttpdCertModel
+	var plan, state uhttpdCertModel
 	resp.Diagnostics.Append(req.Plan.Get(ctx, &plan)...)
+	resp.Diagnostics.Append(req.State.Get(ctx, &state)...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
-	obj, err := r.client.Put(ctx, "/"+uhttpdCertCollection+"/"+plan.ID.ValueString(), r.body(plan))
+	obj, etag, err := r.client.Put(ctx, "/"+uhttpdCertCollection+"/"+plan.ID.ValueString(), r.body(plan), state.ETag.ValueString())
 	if err != nil {
-		resp.Diagnostics.AddError("Error updating uhttpd certificate", err.Error())
+		writeErr(&resp.Diagnostics, "updating", "uhttpd certificate", err)
 		return
 	}
 	r.read(ctx, obj, &plan)
+	plan.ETag = types.StringValue(etag)
 	resp.Diagnostics.Append(resp.State.Set(ctx, &plan)...)
 }
 
@@ -163,8 +169,8 @@ func (r *uhttpdCertResource) Delete(ctx context.Context, req resource.DeleteRequ
 	if resp.Diagnostics.HasError() {
 		return
 	}
-	if err := r.client.Delete(ctx, "/"+uhttpdCertCollection+"/"+state.ID.ValueString()); err != nil {
-		resp.Diagnostics.AddError("Error deleting uhttpd certificate", err.Error())
+	if err := r.client.Delete(ctx, "/"+uhttpdCertCollection+"/"+state.ID.ValueString(), state.ETag.ValueString()); err != nil {
+		writeErr(&resp.Diagnostics, "deleting", "uhttpd certificate", err)
 	}
 }
 

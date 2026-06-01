@@ -5,6 +5,7 @@ import (
 
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	dsschema "github.com/hashicorp/terraform-plugin-framework/datasource/schema"
+	"github.com/hashicorp/terraform-plugin-framework/types"
 
 	"github.com/raspbeguy/terraform-provider-uapi/internal/client"
 )
@@ -32,6 +33,7 @@ func (d *dhcpServerDataSource) Schema(_ context.Context, _ datasource.SchemaRequ
 		Attributes: map[string]dsschema.Attribute{
 			"id":          dsIDAttribute(),
 			"managed":     dsManagedAttribute(),
+			"etag":        dsComputedString("Opaque ETag of the resource's current state."),
 			"interface":   dsComputedString("Network interface this pool serves."),
 			"start":       dsComputedString("Pool start offset within the /24."),
 			"limit":       dsComputedString("Pool size within the /24."),
@@ -54,7 +56,7 @@ func (d *dhcpServerDataSource) Read(ctx context.Context, req datasource.ReadRequ
 	if resp.Diagnostics.HasError() {
 		return
 	}
-	obj, found, err := d.client.GetObject(ctx, "/"+dhcpServerCollection+"/"+m.ID.ValueString())
+	obj, etag, found, err := d.client.GetObject(ctx, "/"+dhcpServerCollection+"/"+m.ID.ValueString())
 	if err != nil {
 		resp.Diagnostics.AddError("Error reading dhcp server", err.Error())
 		return
@@ -65,5 +67,6 @@ func (d *dhcpServerDataSource) Read(ctx context.Context, req datasource.ReadRequ
 	}
 	ds := newDiagsink(&resp.Diagnostics)
 	(&dhcpServerResource{}).read(ctx, obj, &m, ds)
+	m.ETag = types.StringValue(etag)
 	resp.Diagnostics.Append(resp.State.Set(ctx, &m)...)
 }

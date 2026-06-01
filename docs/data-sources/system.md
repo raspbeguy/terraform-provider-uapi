@@ -22,6 +22,7 @@ data "uapi_system" "this" {}
 ### Read-Only
 
 - `description` (String) Short device description.
+- `etag` (String) Opaque ETag of the resource's current state.
 - `hostname` (String) System hostname.
 - `id` (String) Stable id of the system section.
 - `log_ip` (String) Remote syslog server IP.

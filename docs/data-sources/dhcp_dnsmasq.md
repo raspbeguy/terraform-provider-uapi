@@ -27,6 +27,7 @@ data "uapi_dhcp_dnsmasq" "this" {}
 - `cachesize` (String) DNS cache size.
 - `domain` (String) Local DNS domain.
 - `domainneeded` (Boolean) Whether plain names without a domain are never forwarded.
+- `etag` (String) Opaque ETag of the resource's current state.
 - `expandhosts` (Boolean) Whether the local domain is added to /etc/hosts names.
 - `filterwin2k` (Boolean) Whether Windows DNS queries are filtered.
 - `id` (String) Stable id of the dnsmasq section.

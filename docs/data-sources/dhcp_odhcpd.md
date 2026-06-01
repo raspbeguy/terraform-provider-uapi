@@ -21,6 +21,7 @@ data "uapi_dhcp_odhcpd" "this" {}
 
 ### Read-Only
 
+- `etag` (String) Opaque ETag of the resource's current state.
 - `id` (String) Stable id of the odhcpd section.
 - `leasefile` (String) Path to the odhcpd lease file.
 - `leasetrigger` (String) Script run when leases change.

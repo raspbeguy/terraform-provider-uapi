@@ -35,15 +35,26 @@ resource "uapi_unbound_server" "this" {
 - `add_wan_fqdn` (String) How aggressively to add WAN host FQDN records.
 - `dhcp_link` (String) DHCP integration source: none, odhcpd, or dnsmasq.
 - `dnssec_enabled` (Boolean) Enable DNSSEC validation. Defaults to false.
+- `domain` (String) Local domain name unbound serves authoritatively.
+- `domain_type` (String) Local-zone type for the configured domain (e.g. deny, refuse, static, transparent, redirect).
 - `enabled` (Boolean) Whether the unbound resolver is enabled. Defaults to true.
+- `extended_stats` (Boolean) Emit extended statistics (stats-extended). Defaults to false.
+- `hide_binddata` (Boolean) Hide identity and version from binddata queries. Defaults to true.
+- `interface_auto` (Boolean) Bind to all interfaces (interface-automatic). Disable to bind manually. Defaults to true.
 - `listen_port` (String) Port unbound listens on for DNS queries.
+- `localservice` (Boolean) Restrict access to clients on local subnets. Defaults to true.
+- `manual_conf` (Boolean) Skip uci generation and use a hand-written /etc/unbound/unbound.conf. Defaults to false.
+- `num_threads` (String) Number of resolver threads (1-64).
 - `prefetch` (Boolean) Prefetch popular cache entries before they expire. Defaults to false.
 - `protocol` (String) IP protocol mode: auto, ip4_only, ip6_only, or mixed.
 - `query_minimize` (Boolean) Enable QNAME minimization. Defaults to false.
+- `rebind_protection` (String) DNS rebind protection: 0 (off), 1 (private nets), or 2 (all rebind attacks blocked).
 - `recursion` (String) Recursion tuning preset: default, passive, or aggressive.
 - `resource` (String) Memory/cache sizing preset: tiny, small, medium, large, big, or huge.
+- `ttl_min` (String) Minimum TTL in seconds to enforce on cached records (0-86400).
 
 ### Read-Only
 
+- `etag` (String) Opaque ETag of the resource's current state, used for If-Match optimistic concurrency.
 - `id` (String) Stable resource id assigned by uapi (a prefixed ULID).
 - `managed` (Boolean) Whether the underlying uci section is uapi-managed.

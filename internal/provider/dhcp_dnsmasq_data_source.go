@@ -5,6 +5,7 @@ import (
 
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	dsschema "github.com/hashicorp/terraform-plugin-framework/datasource/schema"
+	"github.com/hashicorp/terraform-plugin-framework/types"
 
 	"github.com/raspbeguy/terraform-provider-uapi/internal/client"
 )
@@ -32,6 +33,7 @@ func (d *dhcpDnsmasqDataSource) Schema(_ context.Context, _ datasource.SchemaReq
 		Attributes: map[string]dsschema.Attribute{
 			"id":                dsComputedString("Stable id of the dnsmasq section."),
 			"managed":           dsManagedAttribute(),
+			"etag":              dsComputedString("Opaque ETag of the resource's current state."),
 			"domain":            dsComputedString("Local DNS domain."),
 			"local":             dsComputedString("Local domain suffix served authoritatively."),
 			"noresolv":          dsComputedBool("Whether upstream resolvers are read from resolvfile."),
@@ -54,7 +56,7 @@ func (d *dhcpDnsmasqDataSource) Schema(_ context.Context, _ datasource.SchemaReq
 }
 
 func (d *dhcpDnsmasqDataSource) Read(ctx context.Context, _ datasource.ReadRequest, resp *datasource.ReadResponse) {
-	obj, found, err := d.client.GetObject(ctx, dhcpDnsmasqPath)
+	obj, etag, found, err := d.client.GetObject(ctx, dhcpDnsmasqPath)
 	if err != nil {
 		resp.Diagnostics.AddError("Error reading dnsmasq settings", err.Error())
 		return
@@ -66,5 +68,6 @@ func (d *dhcpDnsmasqDataSource) Read(ctx context.Context, _ datasource.ReadReque
 	var m dhcpDnsmasqModel
 	ds := newDiagsink(&resp.Diagnostics)
 	(&dhcpDnsmasqResource{}).read(ctx, obj, &m, ds)
+	m.ETag = types.StringValue(etag)
 	resp.Diagnostics.Append(resp.State.Set(ctx, &m)...)
 }

@@ -29,6 +29,7 @@ func NewSnmpdAgentResource() resource.Resource {
 type snmpdAgentModel struct {
 	ID           types.String `tfsdk:"id"`
 	Managed      types.Bool   `tfsdk:"managed"`
+	ETag         types.String `tfsdk:"etag"`
 	AgentAddress types.List   `tfsdk:"agentaddress"`
 }
 
@@ -46,6 +47,7 @@ func (r *snmpdAgentResource) Schema(_ context.Context, _ resource.SchemaRequest,
 		Attributes: map[string]schema.Attribute{
 			"id":           computedIDAttribute(),
 			"managed":      managedAttribute(),
+			"etag":         etagAttribute(),
 			"agentaddress": optionalComputedStringList("Addresses the SNMP agent listens on (e.g. UDP:161, udp6:161)."),
 		},
 	}
@@ -74,12 +76,13 @@ func (r *snmpdAgentResource) Create(ctx context.Context, req resource.CreateRequ
 	if resp.Diagnostics.HasError() {
 		return
 	}
-	obj, err := r.client.Post(ctx, "/"+snmpdAgentCollection, body)
+	obj, etag, err := r.client.Post(ctx, "/"+snmpdAgentCollection, body, "")
 	if err != nil {
-		resp.Diagnostics.AddError("Error creating snmpd agent", err.Error())
+		writeErr(&resp.Diagnostics, "creating", "snmpd agent", err)
 		return
 	}
 	r.read(ctx, obj, &plan, ds)
+	plan.ETag = types.StringValue(etag)
 	resp.Diagnostics.Append(resp.State.Set(ctx, &plan)...)
 }
 
@@ -89,7 +92,7 @@ func (r *snmpdAgentResource) Read(ctx context.Context, req resource.ReadRequest,
 	if resp.Diagnostics.HasError() {
 		return
 	}
-	obj, found, err := r.client.GetObject(ctx, "/"+snmpdAgentCollection+"/"+state.ID.ValueString())
+	obj, etag, found, err := r.client.GetObject(ctx, "/"+snmpdAgentCollection+"/"+state.ID.ValueString())
 	if err != nil {
 		resp.Diagnostics.AddError("Error reading snmpd agent", err.Error())
 		return
@@ -100,12 +103,14 @@ func (r *snmpdAgentResource) Read(ctx context.Context, req resource.ReadRequest,
 	}
 	ds := newDiagsink(&resp.Diagnostics)
 	r.read(ctx, obj, &state, ds)
+	state.ETag = types.StringValue(etag)
 	resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)
 }
 
 func (r *snmpdAgentResource) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
-	var plan snmpdAgentModel
+	var plan, state snmpdAgentModel
 	resp.Diagnostics.Append(req.Plan.Get(ctx, &plan)...)
+	resp.Diagnostics.Append(req.State.Get(ctx, &state)...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
@@ -114,12 +119,13 @@ func (r *snmpdAgentResource) Update(ctx context.Context, req resource.UpdateRequ
 	if resp.Diagnostics.HasError() {
 		return
 	}
-	obj, err := r.client.Put(ctx, "/"+snmpdAgentCollection+"/"+plan.ID.ValueString(), body)
+	obj, etag, err := r.client.Put(ctx, "/"+snmpdAgentCollection+"/"+plan.ID.ValueString(), body, state.ETag.ValueString())
 	if err != nil {
-		resp.Diagnostics.AddError("Error updating snmpd agent", err.Error())
+		writeErr(&resp.Diagnostics, "updating", "snmpd agent", err)
 		return
 	}
 	r.read(ctx, obj, &plan, ds)
+	plan.ETag = types.StringValue(etag)
 	resp.Diagnostics.Append(resp.State.Set(ctx, &plan)...)
 }
 
@@ -129,8 +135,8 @@ func (r *snmpdAgentResource) Delete(ctx context.Context, req resource.DeleteRequ
 	if resp.Diagnostics.HasError() {
 		return
 	}
-	if err := r.client.Delete(ctx, "/"+snmpdAgentCollection+"/"+state.ID.ValueString()); err != nil {
-		resp.Diagnostics.AddError("Error deleting snmpd agent", err.Error())
+	if err := r.client.Delete(ctx, "/"+snmpdAgentCollection+"/"+state.ID.ValueString(), state.ETag.ValueString()); err != nil {
+		writeErr(&resp.Diagnostics, "deleting", "snmpd agent", err)
 	}
 }
 

@@ -5,6 +5,7 @@ import (
 
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	dsschema "github.com/hashicorp/terraform-plugin-framework/datasource/schema"
+	"github.com/hashicorp/terraform-plugin-framework/types"
 
 	"github.com/raspbeguy/terraform-provider-uapi/internal/client"
 )
@@ -32,6 +33,7 @@ func (d *dhcpOdhcpdDataSource) Schema(_ context.Context, _ datasource.SchemaRequ
 		Attributes: map[string]dsschema.Attribute{
 			"id":           dsComputedString("Stable id of the odhcpd section."),
 			"managed":      dsManagedAttribute(),
+			"etag":         dsComputedString("Opaque ETag of the resource's current state."),
 			"maindhcp":     dsComputedBool("Whether odhcpd serves IPv4 DHCP instead of dnsmasq."),
 			"leasefile":    dsComputedString("Path to the odhcpd lease file."),
 			"leasetrigger": dsComputedString("Script run when leases change."),
@@ -41,7 +43,7 @@ func (d *dhcpOdhcpdDataSource) Schema(_ context.Context, _ datasource.SchemaRequ
 }
 
 func (d *dhcpOdhcpdDataSource) Read(ctx context.Context, _ datasource.ReadRequest, resp *datasource.ReadResponse) {
-	obj, found, err := d.client.GetObject(ctx, dhcpOdhcpdPath)
+	obj, etag, found, err := d.client.GetObject(ctx, dhcpOdhcpdPath)
 	if err != nil {
 		resp.Diagnostics.AddError("Error reading odhcpd settings", err.Error())
 		return
@@ -52,5 +54,6 @@ func (d *dhcpOdhcpdDataSource) Read(ctx context.Context, _ datasource.ReadReques
 	}
 	var m dhcpOdhcpdModel
 	(&dhcpOdhcpdResource{}).read(ctx, obj, &m)
+	m.ETag = types.StringValue(etag)
 	resp.Diagnostics.Append(resp.State.Set(ctx, &m)...)
 }

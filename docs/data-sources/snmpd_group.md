@@ -27,6 +27,7 @@ data "uapi_snmpd_group" "public" {
 
 ### Read-Only
 
+- `etag` (String) Opaque ETag of the resource's current state.
 - `group` (String) Group name referenced by snmpd access entries.
 - `managed` (Boolean) Whether the underlying uci section is uapi-managed.
 - `secname` (String) Security name added to the group.

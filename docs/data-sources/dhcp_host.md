@@ -27,10 +27,16 @@ data "uapi_dhcp_host" "printer" {
 
 ### Read-Only
 
+- `broadcast` (Boolean) Whether broadcast replies are forced for the host.
 - `dns` (Boolean) Whether a DNS entry is added for the host.
+- `duid` (String) Client DUID for a DHCPv6 reservation.
+- `etag` (String) Opaque concurrency token for the host.
+- `hostid` (String) Static IPv6 host id hint (suffix).
+- `instance` (String) dhcp/dnsmasq instance the reservation is pinned to.
 - `ip` (String) Assigned IPv4 or IPv6 address.
 - `leasetime` (String) Lease duration like '12h', '30m', '1d', or seconds.
-- `mac` (String) Client MAC address.
+- `mac` (String) Primary client MAC address for an IPv4 reservation.
+- `mac_aliases` (List of String) Additional MAC addresses sharing the same reservation.
 - `managed` (Boolean) Whether the underlying uci section is uapi-managed.
 - `name` (String) Hostname for the static lease.
 - `tag` (String) dnsmasq tag applied to the host.

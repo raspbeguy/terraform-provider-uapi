@@ -5,6 +5,7 @@ import (
 
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	dsschema "github.com/hashicorp/terraform-plugin-framework/datasource/schema"
+	"github.com/hashicorp/terraform-plugin-framework/types"
 
 	"github.com/raspbeguy/terraform-provider-uapi/internal/client"
 )
@@ -32,6 +33,7 @@ func (d *lldpdConfigDataSource) Schema(_ context.Context, _ datasource.SchemaReq
 		Attributes: map[string]dsschema.Attribute{
 			"id":                dsComputedString("Stable id of the lldpd config section."),
 			"managed":           dsManagedAttribute(),
+			"etag":              dsComputedString("Opaque ETag of the resource's current state."),
 			"enable_cdp":        dsComputedBool("Whether Cisco Discovery Protocol advertisement is enabled."),
 			"enable_fdp":        dsComputedBool("Whether Foundry Discovery Protocol advertisement is enabled."),
 			"enable_sonmp":      dsComputedBool("Whether Nortel SONMP advertisement is enabled."),
@@ -47,7 +49,7 @@ func (d *lldpdConfigDataSource) Schema(_ context.Context, _ datasource.SchemaReq
 }
 
 func (d *lldpdConfigDataSource) Read(ctx context.Context, _ datasource.ReadRequest, resp *datasource.ReadResponse) {
-	obj, found, err := d.client.GetObject(ctx, lldpdConfigPath)
+	obj, etag, found, err := d.client.GetObject(ctx, lldpdConfigPath)
 	if err != nil {
 		resp.Diagnostics.AddError("Error reading lldpd settings", err.Error())
 		return
@@ -59,5 +61,6 @@ func (d *lldpdConfigDataSource) Read(ctx context.Context, _ datasource.ReadReque
 	var m lldpdConfigModel
 	ds := newDiagsink(&resp.Diagnostics)
 	(&lldpdConfigResource{}).read(ctx, obj, &m, ds)
+	m.ETag = types.StringValue(etag)
 	resp.Diagnostics.Append(resp.State.Set(ctx, &m)...)
 }

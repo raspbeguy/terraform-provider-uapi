@@ -5,6 +5,7 @@ import (
 
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	dsschema "github.com/hashicorp/terraform-plugin-framework/datasource/schema"
+	"github.com/hashicorp/terraform-plugin-framework/types"
 
 	"github.com/raspbeguy/terraform-provider-uapi/internal/client"
 )
@@ -32,6 +33,7 @@ func (d *networkRuleDataSource) Schema(_ context.Context, _ datasource.SchemaReq
 		Attributes: map[string]dsschema.Attribute{
 			"id":       dsIDAttribute(),
 			"managed":  dsManagedAttribute(),
+			"etag":     dsComputedString("Opaque ETag of the resource's current state."),
 			"in":       dsComputedString("Incoming interface selector."),
 			"out":      dsComputedString("Outgoing interface selector."),
 			"src":      dsComputedString("Source IPv4 address or CIDR selector."),
@@ -52,7 +54,7 @@ func (d *networkRuleDataSource) Read(ctx context.Context, req datasource.ReadReq
 	if resp.Diagnostics.HasError() {
 		return
 	}
-	obj, found, err := d.client.GetObject(ctx, "/"+networkRuleCollection+"/"+m.ID.ValueString())
+	obj, etag, found, err := d.client.GetObject(ctx, "/"+networkRuleCollection+"/"+m.ID.ValueString())
 	if err != nil {
 		resp.Diagnostics.AddError("Error reading network rule", err.Error())
 		return
@@ -62,5 +64,6 @@ func (d *networkRuleDataSource) Read(ctx context.Context, req datasource.ReadReq
 		return
 	}
 	(&networkRuleResource{}).read(ctx, obj, &m)
+	m.ETag = types.StringValue(etag)
 	resp.Diagnostics.Append(resp.State.Set(ctx, &m)...)
 }

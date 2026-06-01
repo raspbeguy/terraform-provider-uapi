@@ -26,6 +26,7 @@ data "uapi_prometheus_node_exporter_lua_config" "this" {}
 - `diskstats` (Boolean) Whether the diskstats collector is enabled.
 - `edac` (Boolean) Whether the edac collector is enabled.
 - `entropy` (Boolean) Whether the entropy collector is enabled.
+- `etag` (String) Opaque ETag of the resource's current state.
 - `filesystem` (Boolean) Whether the filesystem collector is enabled.
 - `hwmon` (Boolean) Whether the hwmon collector is enabled.
 - `id` (String) Stable id of the prometheus-node-exporter-lua config section.

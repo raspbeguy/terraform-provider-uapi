@@ -48,6 +48,7 @@ variable "wifi_key" {
 
 ### Read-Only
 
+- `etag` (String) Opaque ETag of the resource's current state, used for If-Match optimistic concurrency.
 - `has_key` (Boolean) Whether a key is configured on the router (the cleartext is never returned).
 - `id` (String) Stable resource id assigned by uapi (a prefixed ULID).
 - `managed` (Boolean) Whether the underlying uci section is uapi-managed.

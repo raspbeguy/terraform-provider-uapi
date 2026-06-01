@@ -5,6 +5,7 @@ import (
 
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	dsschema "github.com/hashicorp/terraform-plugin-framework/datasource/schema"
+	"github.com/hashicorp/terraform-plugin-framework/types"
 
 	"github.com/raspbeguy/terraform-provider-uapi/internal/client"
 )
@@ -32,6 +33,7 @@ func (d *systemDataSource) Schema(_ context.Context, _ datasource.SchemaRequest,
 		Attributes: map[string]dsschema.Attribute{
 			"id":           dsComputedString("Stable id of the system section."),
 			"managed":      dsManagedAttribute(),
+			"etag":         dsComputedString("Opaque ETag of the resource's current state."),
 			"hostname":     dsComputedString("System hostname."),
 			"description":  dsComputedString("Short device description."),
 			"notes":        dsComputedString("Free-form notes."),
@@ -47,7 +49,7 @@ func (d *systemDataSource) Schema(_ context.Context, _ datasource.SchemaRequest,
 }
 
 func (d *systemDataSource) Read(ctx context.Context, _ datasource.ReadRequest, resp *datasource.ReadResponse) {
-	obj, found, err := d.client.GetObject(ctx, systemPath)
+	obj, etag, found, err := d.client.GetObject(ctx, systemPath)
 	if err != nil {
 		resp.Diagnostics.AddError("Error reading system settings", err.Error())
 		return
@@ -58,5 +60,6 @@ func (d *systemDataSource) Read(ctx context.Context, _ datasource.ReadRequest, r
 	}
 	var m systemModel
 	(&systemResource{}).read(ctx, obj, &m)
+	m.ETag = types.StringValue(etag)
 	resp.Diagnostics.Append(resp.State.Set(ctx, &m)...)
 }

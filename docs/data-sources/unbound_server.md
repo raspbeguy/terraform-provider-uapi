@@ -25,12 +25,23 @@ data "uapi_unbound_server" "this" {}
 - `add_wan_fqdn` (String) How aggressively WAN host FQDN records are added.
 - `dhcp_link` (String) DHCP integration source: none, odhcpd, or dnsmasq.
 - `dnssec_enabled` (Boolean) Whether DNSSEC validation is enabled.
+- `domain` (String) Local domain name unbound serves authoritatively.
+- `domain_type` (String) Local-zone type for the configured domain.
 - `enabled` (Boolean) Whether the unbound resolver is enabled.
+- `etag` (String) Opaque ETag of the resource's current state.
+- `extended_stats` (Boolean) Whether extended statistics are emitted.
+- `hide_binddata` (Boolean) Whether identity and version are hidden from binddata queries.
 - `id` (String) Stable id of the unbound server section.
+- `interface_auto` (Boolean) Whether unbound binds to all interfaces automatically.
 - `listen_port` (String) Port unbound listens on for DNS queries.
+- `localservice` (Boolean) Whether access is restricted to clients on local subnets.
 - `managed` (Boolean) Whether the underlying uci section is uapi-managed.
+- `manual_conf` (Boolean) Whether uci generation is skipped in favor of a hand-written unbound.conf.
+- `num_threads` (String) Number of resolver threads.
 - `prefetch` (Boolean) Whether cache prefetching is enabled.
 - `protocol` (String) IP protocol mode: auto, ip4_only, ip6_only, or mixed.
 - `query_minimize` (Boolean) Whether QNAME minimization is enabled.
+- `rebind_protection` (String) DNS rebind protection: 0 (off), 1 (private nets), or 2 (all rebind attacks blocked).
 - `recursion` (String) Recursion tuning preset: default, passive, or aggressive.
 - `resource` (String) Memory/cache sizing preset: tiny, small, medium, large, big, or huge.
+- `ttl_min` (String) Minimum TTL in seconds enforced on cached records.

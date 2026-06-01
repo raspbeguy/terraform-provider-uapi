@@ -46,21 +46,33 @@ variable "wg_private_key" {
 
 - `addresses` (List of String) WireGuard interface addresses as CIDRs (proto = wireguard).
 - `auto` (Boolean) Bring the interface up automatically. Defaults to true.
+- `clientid` (String) DHCP client identifier (proto = dhcp).
+- `defaultroute` (Boolean) Install the default route received over DHCP (proto = dhcp). Defaults to true.
+- `delegate` (Boolean) Accept prefix delegation downstream (proto = dhcpv6). Defaults to true.
 - `device` (String) Underlying device this interface binds to.
 - `dns` (List of String) DNS servers.
 - `gateway` (String) Default gateway.
+- `hostname` (String) Client hostname sent in DHCPDISCOVER (proto = dhcp).
 - `ip4table` (String) WireGuard IPv4 routing table (proto = wireguard).
 - `ip6assign` (String) IPv6 prefix assignment length.
+- `ip6hint` (String) Preferred IPv6 prefix hint for prefix delegation, like 2001:db8::/56 (proto = dhcpv6).
+- `ip6ifaceid` (String) Static IPv6 interface id for IA_NA, like ::1 or an EUI-64 form (proto = dhcpv6).
 - `ip6table` (String) WireGuard IPv6 routing table (proto = wireguard).
-- `ipaddr` (String) IPv4 address (required when proto is static).
+- `ipaddr` (String) IPv4 address (required when proto is static, unless ipaddrs is set).
+- `ipaddrs` (List of String) Full IPv4 address list for a static interface (uci `list ipaddr`). Preferred over ipaddr for multi-address interfaces.
 - `listen_port` (String) WireGuard UDP listen port (proto = wireguard).
+- `metric` (String) Default-route metric (proto = dhcp).
 - `mtu` (String) Interface MTU.
 - `netmask` (String) IPv4 netmask.
 - `nohostroute` (Boolean) WireGuard: skip adding host routes for peers. Defaults to false.
+- `peerdns` (Boolean) Accept DNS servers advertised by the upstream (proto = dhcp or dhcpv6). Defaults to true.
 - `private_key` (String, Sensitive) WireGuard private key (proto = wireguard). Write-only: the API never returns it, so it is not refreshed from the router.
+- `reqaddress` (String) DHCPv6 IA_NA request mode: try, force, or none (proto = dhcpv6).
+- `reqprefix` (String) DHCPv6 prefix-delegation request: auto, no, or a numeric prefix size (proto = dhcpv6).
 
 ### Read-Only
 
+- `etag` (String) Opaque ETag of the resource's current state, used for If-Match optimistic concurrency.
 - `has_private_key` (Boolean) Whether a WireGuard private key is configured (the key itself is never returned).
 - `id` (String) Stable resource id assigned by uapi (a prefixed ULID).
 - `managed` (Boolean) Whether the underlying uci section is uapi-managed.

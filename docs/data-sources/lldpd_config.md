@@ -26,6 +26,7 @@ data "uapi_lldpd_config" "this" {}
 - `enable_fdp` (Boolean) Whether Foundry Discovery Protocol advertisement is enabled.
 - `enable_lldpmed` (Boolean) Whether LLDP-MED advertisement is enabled.
 - `enable_sonmp` (Boolean) Whether Nortel SONMP advertisement is enabled.
+- `etag` (String) Opaque ETag of the resource's current state.
 - `id` (String) Stable id of the lldpd config section.
 - `interface` (List of String) Network interfaces lldpd listens on. Empty means all interfaces.
 - `lldp_capabilities` (Boolean) Whether system capabilities are advertised.

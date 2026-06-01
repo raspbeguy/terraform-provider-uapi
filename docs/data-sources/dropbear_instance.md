@@ -29,6 +29,7 @@ data "uapi_dropbear_instance" "lan" {
 
 - `banner_file` (String) Path to a file displayed before authentication.
 - `enable` (Boolean) Whether this dropbear instance is enabled.
+- `etag` (String) Opaque ETag of the resource's current state.
 - `gateway_ports` (Boolean) Whether remote hosts may connect to forwarded ports.
 - `interface` (String) Network interface to bind to.
 - `managed` (Boolean) Whether the underlying uci section is uapi-managed.

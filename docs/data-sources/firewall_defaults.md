@@ -22,6 +22,7 @@ data "uapi_firewall_defaults" "this" {}
 ### Read-Only
 
 - `drop_invalid` (Boolean) Whether packets in an invalid conntrack state are dropped.
+- `etag` (String) Opaque ETag of the resource's current state.
 - `flow_offloading` (Boolean) Whether software flow offloading is enabled.
 - `flow_offloading_hw` (Boolean) Whether hardware flow offloading is enabled.
 - `forward` (String) Default policy for forwarded traffic: ACCEPT, REJECT, or DROP.

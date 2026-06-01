@@ -30,6 +30,7 @@ func NewSnmpdSystemResource() resource.Resource {
 type snmpdSystemModel struct {
 	ID          types.String `tfsdk:"id"`
 	Managed     types.Bool   `tfsdk:"managed"`
+	ETag        types.String `tfsdk:"etag"`
 	SysLocation types.String `tfsdk:"sys_location"`
 	SysContact  types.String `tfsdk:"sys_contact"`
 	SysName     types.String `tfsdk:"sys_name"`
@@ -54,6 +55,7 @@ func (r *snmpdSystemResource) Schema(_ context.Context, _ resource.SchemaRequest
 		Attributes: map[string]schema.Attribute{
 			"id":      computedIDAttribute(),
 			"managed": managedAttribute(),
+			"etag":    etagAttribute(),
 			"sys_location": schema.StringAttribute{
 				Optional:    true,
 				Description: "Value reported as sysLocation (the device's physical location).",
@@ -110,12 +112,13 @@ func (r *snmpdSystemResource) Create(ctx context.Context, req resource.CreateReq
 	if resp.Diagnostics.HasError() {
 		return
 	}
-	obj, err := r.client.Patch(ctx, snmpdSystemPath, r.body(ctx, plan))
+	obj, etag, err := r.client.Patch(ctx, snmpdSystemPath, r.body(ctx, plan), "")
 	if err != nil {
-		resp.Diagnostics.AddError("Error configuring snmpd system identity", err.Error())
+		writeErr(&resp.Diagnostics, "configuring", "snmpd system identity", err)
 		return
 	}
 	r.read(ctx, obj, &plan)
+	plan.ETag = types.StringValue(etag)
 	resp.Diagnostics.Append(resp.State.Set(ctx, &plan)...)
 }
 
@@ -125,7 +128,7 @@ func (r *snmpdSystemResource) Read(ctx context.Context, req resource.ReadRequest
 	if resp.Diagnostics.HasError() {
 		return
 	}
-	obj, found, err := r.client.GetObject(ctx, snmpdSystemPath)
+	obj, etag, found, err := r.client.GetObject(ctx, snmpdSystemPath)
 	if err != nil {
 		resp.Diagnostics.AddError("Error reading snmpd system identity", err.Error())
 		return
@@ -135,21 +138,24 @@ func (r *snmpdSystemResource) Read(ctx context.Context, req resource.ReadRequest
 		return
 	}
 	r.read(ctx, obj, &state)
+	state.ETag = types.StringValue(etag)
 	resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)
 }
 
 func (r *snmpdSystemResource) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
-	var plan snmpdSystemModel
+	var plan, state snmpdSystemModel
 	resp.Diagnostics.Append(req.Plan.Get(ctx, &plan)...)
+	resp.Diagnostics.Append(req.State.Get(ctx, &state)...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
-	obj, err := r.client.Patch(ctx, snmpdSystemPath, r.body(ctx, plan))
+	obj, etag, err := r.client.Patch(ctx, snmpdSystemPath, r.body(ctx, plan), state.ETag.ValueString())
 	if err != nil {
-		resp.Diagnostics.AddError("Error updating snmpd system identity", err.Error())
+		writeErr(&resp.Diagnostics, "updating", "snmpd system identity", err)
 		return
 	}
 	r.read(ctx, obj, &plan)
+	plan.ETag = types.StringValue(etag)
 	resp.Diagnostics.Append(resp.State.Set(ctx, &plan)...)
 }
 

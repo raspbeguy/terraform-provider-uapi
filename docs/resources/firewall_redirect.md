@@ -38,10 +38,14 @@ resource "uapi_firewall_redirect" "web" {
 
 - `enabled` (Boolean) Whether the redirect is active. Defaults to true.
 - `name` (String) Optional human-readable redirect name.
+- `reflection` (Boolean) Enable NAT loopback / hairpinning for this redirect.
+- `reflection_src` (String) Source address used for hairpinned packets: internal or external.
+- `reflection_zone` (List of String) Firewall zones in which NAT reflection is applied.
 - `target` (String) Redirect type: DNAT or SNAT. Defaults to DNAT.
 
 ### Read-Only
 
+- `etag` (String) Opaque ETag of the resource's current state, used for If-Match optimistic concurrency.
 - `id` (String) Stable resource id assigned by uapi (a prefixed ULID).
 - `managed` (Boolean) Whether the underlying uci section is uapi-managed.
 

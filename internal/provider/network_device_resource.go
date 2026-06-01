@@ -29,6 +29,7 @@ func NewNetworkDeviceResource() resource.Resource {
 type networkDeviceModel struct {
 	ID      types.String `tfsdk:"id"`
 	Managed types.Bool   `tfsdk:"managed"`
+	ETag    types.String `tfsdk:"etag"`
 	Name    types.String `tfsdk:"name"`
 	Type    types.String `tfsdk:"type"`
 	Ports   types.List   `tfsdk:"ports"`
@@ -53,6 +54,7 @@ func (r *networkDeviceResource) Schema(_ context.Context, _ resource.SchemaReque
 		Attributes: map[string]schema.Attribute{
 			"id":      computedIDAttribute(),
 			"managed": managedAttribute(),
+			"etag":    etagAttribute(),
 			"name": schema.StringAttribute{
 				Required:    true,
 				Description: "Device name (e.g. br-lan).",
@@ -108,12 +110,13 @@ func (r *networkDeviceResource) Create(ctx context.Context, req resource.CreateR
 	if resp.Diagnostics.HasError() {
 		return
 	}
-	obj, err := r.client.Post(ctx, "/"+networkDeviceCollection, body)
+	obj, etag, err := r.client.Post(ctx, "/"+networkDeviceCollection, body, "")
 	if err != nil {
-		resp.Diagnostics.AddError("Error creating network device", err.Error())
+		writeErr(&resp.Diagnostics, "creating", "network device", err)
 		return
 	}
 	r.read(ctx, obj, &plan, ds)
+	plan.ETag = types.StringValue(etag)
 	resp.Diagnostics.Append(resp.State.Set(ctx, &plan)...)
 }
 
@@ -123,7 +126,7 @@ func (r *networkDeviceResource) Read(ctx context.Context, req resource.ReadReque
 	if resp.Diagnostics.HasError() {
 		return
 	}
-	obj, found, err := r.client.GetObject(ctx, "/"+networkDeviceCollection+"/"+state.ID.ValueString())
+	obj, etag, found, err := r.client.GetObject(ctx, "/"+networkDeviceCollection+"/"+state.ID.ValueString())
 	if err != nil {
 		resp.Diagnostics.AddError("Error reading network device", err.Error())
 		return
@@ -134,12 +137,14 @@ func (r *networkDeviceResource) Read(ctx context.Context, req resource.ReadReque
 	}
 	ds := newDiagsink(&resp.Diagnostics)
 	r.read(ctx, obj, &state, ds)
+	state.ETag = types.StringValue(etag)
 	resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)
 }
 
 func (r *networkDeviceResource) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
-	var plan networkDeviceModel
+	var plan, state networkDeviceModel
 	resp.Diagnostics.Append(req.Plan.Get(ctx, &plan)...)
+	resp.Diagnostics.Append(req.State.Get(ctx, &state)...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
@@ -148,12 +153,13 @@ func (r *networkDeviceResource) Update(ctx context.Context, req resource.UpdateR
 	if resp.Diagnostics.HasError() {
 		return
 	}
-	obj, err := r.client.Put(ctx, "/"+networkDeviceCollection+"/"+plan.ID.ValueString(), body)
+	obj, etag, err := r.client.Put(ctx, "/"+networkDeviceCollection+"/"+plan.ID.ValueString(), body, state.ETag.ValueString())
 	if err != nil {
-		resp.Diagnostics.AddError("Error updating network device", err.Error())
+		writeErr(&resp.Diagnostics, "updating", "network device", err)
 		return
 	}
 	r.read(ctx, obj, &plan, ds)
+	plan.ETag = types.StringValue(etag)
 	resp.Diagnostics.Append(resp.State.Set(ctx, &plan)...)
 }
 
@@ -163,8 +169,8 @@ func (r *networkDeviceResource) Delete(ctx context.Context, req resource.DeleteR
 	if resp.Diagnostics.HasError() {
 		return
 	}
-	if err := r.client.Delete(ctx, "/"+networkDeviceCollection+"/"+state.ID.ValueString()); err != nil {
-		resp.Diagnostics.AddError("Error deleting network device", err.Error())
+	if err := r.client.Delete(ctx, "/"+networkDeviceCollection+"/"+state.ID.ValueString(), state.ETag.ValueString()); err != nil {
+		writeErr(&resp.Diagnostics, "deleting", "network device", err)
 	}
 }
 

@@ -29,6 +29,7 @@ func NewSnmpdCom2secResource() resource.Resource {
 type snmpdCom2secModel struct {
 	ID        types.String `tfsdk:"id"`
 	Managed   types.Bool   `tfsdk:"managed"`
+	ETag      types.String `tfsdk:"etag"`
 	Secname   types.String `tfsdk:"secname"`
 	Source    types.String `tfsdk:"source"`
 	Community types.String `tfsdk:"community"`
@@ -48,6 +49,7 @@ func (r *snmpdCom2secResource) Schema(_ context.Context, _ resource.SchemaReques
 		Attributes: map[string]schema.Attribute{
 			"id":      computedIDAttribute(),
 			"managed": managedAttribute(),
+			"etag":    etagAttribute(),
 			"secname": schema.StringAttribute{
 				Required:    true,
 				Description: "Security name the community maps to.",
@@ -86,12 +88,13 @@ func (r *snmpdCom2secResource) Create(ctx context.Context, req resource.CreateRe
 	if resp.Diagnostics.HasError() {
 		return
 	}
-	obj, err := r.client.Post(ctx, "/"+snmpdCom2secCollection, r.body(ctx, plan))
+	obj, etag, err := r.client.Post(ctx, "/"+snmpdCom2secCollection, r.body(ctx, plan), "")
 	if err != nil {
-		resp.Diagnostics.AddError("Error creating snmpd com2sec", err.Error())
+		writeErr(&resp.Diagnostics, "creating", "snmpd com2sec", err)
 		return
 	}
 	r.read(ctx, obj, &plan)
+	plan.ETag = types.StringValue(etag)
 	resp.Diagnostics.Append(resp.State.Set(ctx, &plan)...)
 }
 
@@ -101,7 +104,7 @@ func (r *snmpdCom2secResource) Read(ctx context.Context, req resource.ReadReques
 	if resp.Diagnostics.HasError() {
 		return
 	}
-	obj, found, err := r.client.GetObject(ctx, "/"+snmpdCom2secCollection+"/"+state.ID.ValueString())
+	obj, etag, found, err := r.client.GetObject(ctx, "/"+snmpdCom2secCollection+"/"+state.ID.ValueString())
 	if err != nil {
 		resp.Diagnostics.AddError("Error reading snmpd com2sec", err.Error())
 		return
@@ -111,21 +114,24 @@ func (r *snmpdCom2secResource) Read(ctx context.Context, req resource.ReadReques
 		return
 	}
 	r.read(ctx, obj, &state)
+	state.ETag = types.StringValue(etag)
 	resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)
 }
 
 func (r *snmpdCom2secResource) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
-	var plan snmpdCom2secModel
+	var plan, state snmpdCom2secModel
 	resp.Diagnostics.Append(req.Plan.Get(ctx, &plan)...)
+	resp.Diagnostics.Append(req.State.Get(ctx, &state)...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
-	obj, err := r.client.Put(ctx, "/"+snmpdCom2secCollection+"/"+plan.ID.ValueString(), r.body(ctx, plan))
+	obj, etag, err := r.client.Put(ctx, "/"+snmpdCom2secCollection+"/"+plan.ID.ValueString(), r.body(ctx, plan), state.ETag.ValueString())
 	if err != nil {
-		resp.Diagnostics.AddError("Error updating snmpd com2sec", err.Error())
+		writeErr(&resp.Diagnostics, "updating", "snmpd com2sec", err)
 		return
 	}
 	r.read(ctx, obj, &plan)
+	plan.ETag = types.StringValue(etag)
 	resp.Diagnostics.Append(resp.State.Set(ctx, &plan)...)
 }
 
@@ -135,8 +141,8 @@ func (r *snmpdCom2secResource) Delete(ctx context.Context, req resource.DeleteRe
 	if resp.Diagnostics.HasError() {
 		return
 	}
-	if err := r.client.Delete(ctx, "/"+snmpdCom2secCollection+"/"+state.ID.ValueString()); err != nil {
-		resp.Diagnostics.AddError("Error deleting snmpd com2sec", err.Error())
+	if err := r.client.Delete(ctx, "/"+snmpdCom2secCollection+"/"+state.ID.ValueString(), state.ETag.ValueString()); err != nil {
+		writeErr(&resp.Diagnostics, "deleting", "snmpd com2sec", err)
 	}
 }
 

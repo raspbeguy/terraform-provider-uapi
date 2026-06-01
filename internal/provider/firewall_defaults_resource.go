@@ -30,6 +30,7 @@ func NewFirewallDefaultsResource() resource.Resource {
 type firewallDefaultsModel struct {
 	ID               types.String `tfsdk:"id"`
 	Managed          types.Bool   `tfsdk:"managed"`
+	ETag             types.String `tfsdk:"etag"`
 	Input            types.String `tfsdk:"input"`
 	Output           types.String `tfsdk:"output"`
 	Forward          types.String `tfsdk:"forward"`
@@ -58,6 +59,7 @@ func (r *firewallDefaultsResource) Schema(_ context.Context, _ resource.SchemaRe
 		Attributes: map[string]schema.Attribute{
 			"id":      computedIDAttribute(),
 			"managed": managedAttribute(),
+			"etag":    etagAttribute(),
 			"input": schema.StringAttribute{
 				Optional:    true,
 				Description: "Default policy for input traffic: ACCEPT, REJECT, or DROP.",
@@ -123,12 +125,13 @@ func (r *firewallDefaultsResource) Create(ctx context.Context, req resource.Crea
 	if resp.Diagnostics.HasError() {
 		return
 	}
-	obj, err := r.client.Patch(ctx, firewallDefaultsPath, r.body(ctx, plan))
+	obj, etag, err := r.client.Patch(ctx, firewallDefaultsPath, r.body(ctx, plan), "")
 	if err != nil {
-		resp.Diagnostics.AddError("Error configuring firewall defaults", err.Error())
+		writeErr(&resp.Diagnostics, "configuring", "firewall defaults", err)
 		return
 	}
 	r.read(ctx, obj, &plan)
+	plan.ETag = types.StringValue(etag)
 	resp.Diagnostics.Append(resp.State.Set(ctx, &plan)...)
 }
 
@@ -138,7 +141,7 @@ func (r *firewallDefaultsResource) Read(ctx context.Context, req resource.ReadRe
 	if resp.Diagnostics.HasError() {
 		return
 	}
-	obj, found, err := r.client.GetObject(ctx, firewallDefaultsPath)
+	obj, etag, found, err := r.client.GetObject(ctx, firewallDefaultsPath)
 	if err != nil {
 		resp.Diagnostics.AddError("Error reading firewall defaults", err.Error())
 		return
@@ -148,21 +151,24 @@ func (r *firewallDefaultsResource) Read(ctx context.Context, req resource.ReadRe
 		return
 	}
 	r.read(ctx, obj, &state)
+	state.ETag = types.StringValue(etag)
 	resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)
 }
 
 func (r *firewallDefaultsResource) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
-	var plan firewallDefaultsModel
+	var plan, state firewallDefaultsModel
 	resp.Diagnostics.Append(req.Plan.Get(ctx, &plan)...)
+	resp.Diagnostics.Append(req.State.Get(ctx, &state)...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
-	obj, err := r.client.Patch(ctx, firewallDefaultsPath, r.body(ctx, plan))
+	obj, etag, err := r.client.Patch(ctx, firewallDefaultsPath, r.body(ctx, plan), state.ETag.ValueString())
 	if err != nil {
-		resp.Diagnostics.AddError("Error updating firewall defaults", err.Error())
+		writeErr(&resp.Diagnostics, "updating", "firewall defaults", err)
 		return
 	}
 	r.read(ctx, obj, &plan)
+	plan.ETag = types.StringValue(etag)
 	resp.Diagnostics.Append(resp.State.Set(ctx, &plan)...)
 }
 

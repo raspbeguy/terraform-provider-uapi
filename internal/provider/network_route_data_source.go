@@ -5,6 +5,7 @@ import (
 
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	dsschema "github.com/hashicorp/terraform-plugin-framework/datasource/schema"
+	"github.com/hashicorp/terraform-plugin-framework/types"
 
 	"github.com/raspbeguy/terraform-provider-uapi/internal/client"
 )
@@ -32,6 +33,7 @@ func (d *networkRouteDataSource) Schema(_ context.Context, _ datasource.SchemaRe
 		Attributes: map[string]dsschema.Attribute{
 			"id":        dsIDAttribute(),
 			"managed":   dsManagedAttribute(),
+			"etag":      dsComputedString("Opaque ETag of the resource's current state."),
 			"interface": dsComputedString("Logical network interface the route is bound to."),
 			"target":    dsComputedString("Destination IPv4 address or CIDR."),
 			"netmask":   dsComputedString("Destination netmask, when target is a bare address."),
@@ -51,7 +53,7 @@ func (d *networkRouteDataSource) Read(ctx context.Context, req datasource.ReadRe
 	if resp.Diagnostics.HasError() {
 		return
 	}
-	obj, found, err := d.client.GetObject(ctx, "/"+networkRouteCollection+"/"+m.ID.ValueString())
+	obj, etag, found, err := d.client.GetObject(ctx, "/"+networkRouteCollection+"/"+m.ID.ValueString())
 	if err != nil {
 		resp.Diagnostics.AddError("Error reading network route", err.Error())
 		return
@@ -61,5 +63,6 @@ func (d *networkRouteDataSource) Read(ctx context.Context, req datasource.ReadRe
 		return
 	}
 	(&networkRouteResource{}).read(ctx, obj, &m)
+	m.ETag = types.StringValue(etag)
 	resp.Diagnostics.Append(resp.State.Set(ctx, &m)...)
 }

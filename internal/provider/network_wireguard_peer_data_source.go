@@ -5,6 +5,7 @@ import (
 
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	dsschema "github.com/hashicorp/terraform-plugin-framework/datasource/schema"
+	"github.com/hashicorp/terraform-plugin-framework/types"
 
 	"github.com/raspbeguy/terraform-provider-uapi/internal/client"
 )
@@ -34,6 +35,7 @@ func (d *networkWireguardPeerDataSource) Schema(_ context.Context, _ datasource.
 		Attributes: map[string]dsschema.Attribute{
 			"id":                   dsIDAttribute(),
 			"managed":              dsManagedAttribute(),
+			"etag":                 dsComputedString("Opaque ETag of the resource's current state."),
 			"interface":            dsComputedString("Parent WireGuard interface name."),
 			"description":          dsComputedString("Human-readable peer description."),
 			"public_key":           dsComputedString("Peer public key (44-char base64)."),
@@ -55,7 +57,7 @@ func (d *networkWireguardPeerDataSource) Read(ctx context.Context, req datasourc
 	if resp.Diagnostics.HasError() {
 		return
 	}
-	obj, found, err := d.client.GetObject(ctx, "/"+networkWireguardPeerCollection+"/"+m.ID.ValueString())
+	obj, etag, found, err := d.client.GetObject(ctx, "/"+networkWireguardPeerCollection+"/"+m.ID.ValueString())
 	if err != nil {
 		resp.Diagnostics.AddError("Error reading network WireGuard peer", err.Error())
 		return
@@ -66,5 +68,6 @@ func (d *networkWireguardPeerDataSource) Read(ctx context.Context, req datasourc
 	}
 	ds := newDiagsink(&resp.Diagnostics)
 	(&networkWireguardPeerResource{}).read(ctx, obj, &m, ds)
+	m.ETag = types.StringValue(etag)
 	resp.Diagnostics.Append(resp.State.Set(ctx, &m)...)
 }

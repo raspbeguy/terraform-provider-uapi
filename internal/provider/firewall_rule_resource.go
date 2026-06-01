@@ -32,6 +32,7 @@ func NewFirewallRuleResource() resource.Resource {
 type firewallRuleModel struct {
 	ID      types.String       `tfsdk:"id"`
 	Managed types.Bool         `tfsdk:"managed"`
+	ETag    types.String       `tfsdk:"etag"`
 	Name    types.String       `tfsdk:"name"`
 	Target  types.String       `tfsdk:"target"`
 	Enabled types.Bool         `tfsdk:"enabled"`
@@ -63,6 +64,7 @@ func (r *firewallRuleResource) Schema(_ context.Context, _ resource.SchemaReques
 		Attributes: map[string]schema.Attribute{
 			"id":      computedIDAttribute(),
 			"managed": managedAttribute(),
+			"etag":    etagAttribute(),
 			"name": schema.StringAttribute{
 				Optional:    true,
 				Description: "Optional human-readable rule name.",
@@ -161,12 +163,13 @@ func (r *firewallRuleResource) Create(ctx context.Context, req resource.CreateRe
 	if resp.Diagnostics.HasError() {
 		return
 	}
-	obj, err := r.client.Post(ctx, "/"+firewallRuleCollection, body)
+	obj, etag, err := r.client.Post(ctx, "/"+firewallRuleCollection, body, "")
 	if err != nil {
-		resp.Diagnostics.AddError("Error creating firewall rule", err.Error())
+		writeErr(&resp.Diagnostics, "creating", "firewall rule", err)
 		return
 	}
 	r.read(ctx, obj, &plan, ds)
+	plan.ETag = types.StringValue(etag)
 	resp.Diagnostics.Append(resp.State.Set(ctx, &plan)...)
 }
 
@@ -176,7 +179,7 @@ func (r *firewallRuleResource) Read(ctx context.Context, req resource.ReadReques
 	if resp.Diagnostics.HasError() {
 		return
 	}
-	obj, found, err := r.client.GetObject(ctx, "/"+firewallRuleCollection+"/"+state.ID.ValueString())
+	obj, etag, found, err := r.client.GetObject(ctx, "/"+firewallRuleCollection+"/"+state.ID.ValueString())
 	if err != nil {
 		resp.Diagnostics.AddError("Error reading firewall rule", err.Error())
 		return
@@ -187,12 +190,14 @@ func (r *firewallRuleResource) Read(ctx context.Context, req resource.ReadReques
 	}
 	ds := newDiagsink(&resp.Diagnostics)
 	r.read(ctx, obj, &state, ds)
+	state.ETag = types.StringValue(etag)
 	resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)
 }
 
 func (r *firewallRuleResource) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
-	var plan firewallRuleModel
+	var plan, state firewallRuleModel
 	resp.Diagnostics.Append(req.Plan.Get(ctx, &plan)...)
+	resp.Diagnostics.Append(req.State.Get(ctx, &state)...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
@@ -201,12 +206,13 @@ func (r *firewallRuleResource) Update(ctx context.Context, req resource.UpdateRe
 	if resp.Diagnostics.HasError() {
 		return
 	}
-	obj, err := r.client.Put(ctx, "/"+firewallRuleCollection+"/"+plan.ID.ValueString(), body)
+	obj, etag, err := r.client.Put(ctx, "/"+firewallRuleCollection+"/"+plan.ID.ValueString(), body, state.ETag.ValueString())
 	if err != nil {
-		resp.Diagnostics.AddError("Error updating firewall rule", err.Error())
+		writeErr(&resp.Diagnostics, "updating", "firewall rule", err)
 		return
 	}
 	r.read(ctx, obj, &plan, ds)
+	plan.ETag = types.StringValue(etag)
 	resp.Diagnostics.Append(resp.State.Set(ctx, &plan)...)
 }
 
@@ -216,8 +222,8 @@ func (r *firewallRuleResource) Delete(ctx context.Context, req resource.DeleteRe
 	if resp.Diagnostics.HasError() {
 		return
 	}
-	if err := r.client.Delete(ctx, "/"+firewallRuleCollection+"/"+state.ID.ValueString()); err != nil {
-		resp.Diagnostics.AddError("Error deleting firewall rule", err.Error())
+	if err := r.client.Delete(ctx, "/"+firewallRuleCollection+"/"+state.ID.ValueString(), state.ETag.ValueString()); err != nil {
+		writeErr(&resp.Diagnostics, "deleting", "firewall rule", err)
 	}
 }
 

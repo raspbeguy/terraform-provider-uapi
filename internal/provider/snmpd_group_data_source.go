@@ -5,6 +5,7 @@ import (
 
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	dsschema "github.com/hashicorp/terraform-plugin-framework/datasource/schema"
+	"github.com/hashicorp/terraform-plugin-framework/types"
 
 	"github.com/raspbeguy/terraform-provider-uapi/internal/client"
 )
@@ -32,6 +33,7 @@ func (d *snmpdGroupDataSource) Schema(_ context.Context, _ datasource.SchemaRequ
 		Attributes: map[string]dsschema.Attribute{
 			"id":      dsIDAttribute(),
 			"managed": dsManagedAttribute(),
+			"etag":    dsComputedString("Opaque ETag of the resource's current state."),
 			"group":   dsComputedString("Group name referenced by snmpd access entries."),
 			"version": dsComputedString("Security model for the membership: v1, v2c, or usm."),
 			"secname": dsComputedString("Security name added to the group."),
@@ -45,7 +47,7 @@ func (d *snmpdGroupDataSource) Read(ctx context.Context, req datasource.ReadRequ
 	if resp.Diagnostics.HasError() {
 		return
 	}
-	obj, found, err := d.client.GetObject(ctx, "/"+snmpdGroupCollection+"/"+m.ID.ValueString())
+	obj, etag, found, err := d.client.GetObject(ctx, "/"+snmpdGroupCollection+"/"+m.ID.ValueString())
 	if err != nil {
 		resp.Diagnostics.AddError("Error reading snmpd group", err.Error())
 		return
@@ -55,5 +57,6 @@ func (d *snmpdGroupDataSource) Read(ctx context.Context, req datasource.ReadRequ
 		return
 	}
 	(&snmpdGroupResource{}).read(ctx, obj, &m)
+	m.ETag = types.StringValue(etag)
 	resp.Diagnostics.Append(resp.State.Set(ctx, &m)...)
 }

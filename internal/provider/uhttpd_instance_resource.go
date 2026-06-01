@@ -29,6 +29,7 @@ func NewUhttpdInstanceResource() resource.Resource {
 type uhttpdInstanceModel struct {
 	ID             types.String `tfsdk:"id"`
 	Managed        types.Bool   `tfsdk:"managed"`
+	ETag           types.String `tfsdk:"etag"`
 	ListenHTTP     types.List   `tfsdk:"listen_http"`
 	ListenHTTPS    types.List   `tfsdk:"listen_https"`
 	Home           types.String `tfsdk:"home"`
@@ -64,6 +65,7 @@ func (r *uhttpdInstanceResource) Schema(_ context.Context, _ resource.SchemaRequ
 		Attributes: map[string]schema.Attribute{
 			"id":              computedIDAttribute(),
 			"managed":         managedAttribute(),
+			"etag":            etagAttribute(),
 			"listen_http":     optionalComputedStringList("Addresses to listen on for HTTP, each <host>:<port> (e.g. 0.0.0.0:80 or [::]:80)."),
 			"listen_https":    optionalComputedStringList("Addresses to listen on for HTTPS, each <host>:<port> (e.g. 0.0.0.0:443 or [::]:443)."),
 			"home":            schema.StringAttribute{Optional: true, Description: "Document root served by this instance."},
@@ -146,12 +148,13 @@ func (r *uhttpdInstanceResource) Create(ctx context.Context, req resource.Create
 	if resp.Diagnostics.HasError() {
 		return
 	}
-	obj, err := r.client.Post(ctx, "/"+uhttpdInstanceCollection, body)
+	obj, etag, err := r.client.Post(ctx, "/"+uhttpdInstanceCollection, body, "")
 	if err != nil {
-		resp.Diagnostics.AddError("Error creating uhttpd instance", err.Error())
+		writeErr(&resp.Diagnostics, "creating", "uhttpd instance", err)
 		return
 	}
 	r.read(ctx, obj, &plan, ds)
+	plan.ETag = types.StringValue(etag)
 	resp.Diagnostics.Append(resp.State.Set(ctx, &plan)...)
 }
 
@@ -161,7 +164,7 @@ func (r *uhttpdInstanceResource) Read(ctx context.Context, req resource.ReadRequ
 	if resp.Diagnostics.HasError() {
 		return
 	}
-	obj, found, err := r.client.GetObject(ctx, "/"+uhttpdInstanceCollection+"/"+state.ID.ValueString())
+	obj, etag, found, err := r.client.GetObject(ctx, "/"+uhttpdInstanceCollection+"/"+state.ID.ValueString())
 	if err != nil {
 		resp.Diagnostics.AddError("Error reading uhttpd instance", err.Error())
 		return
@@ -172,12 +175,14 @@ func (r *uhttpdInstanceResource) Read(ctx context.Context, req resource.ReadRequ
 	}
 	ds := newDiagsink(&resp.Diagnostics)
 	r.read(ctx, obj, &state, ds)
+	state.ETag = types.StringValue(etag)
 	resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)
 }
 
 func (r *uhttpdInstanceResource) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
-	var plan uhttpdInstanceModel
+	var plan, state uhttpdInstanceModel
 	resp.Diagnostics.Append(req.Plan.Get(ctx, &plan)...)
+	resp.Diagnostics.Append(req.State.Get(ctx, &state)...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
@@ -186,12 +191,13 @@ func (r *uhttpdInstanceResource) Update(ctx context.Context, req resource.Update
 	if resp.Diagnostics.HasError() {
 		return
 	}
-	obj, err := r.client.Put(ctx, "/"+uhttpdInstanceCollection+"/"+plan.ID.ValueString(), body)
+	obj, etag, err := r.client.Put(ctx, "/"+uhttpdInstanceCollection+"/"+plan.ID.ValueString(), body, state.ETag.ValueString())
 	if err != nil {
-		resp.Diagnostics.AddError("Error updating uhttpd instance", err.Error())
+		writeErr(&resp.Diagnostics, "updating", "uhttpd instance", err)
 		return
 	}
 	r.read(ctx, obj, &plan, ds)
+	plan.ETag = types.StringValue(etag)
 	resp.Diagnostics.Append(resp.State.Set(ctx, &plan)...)
 }
 
@@ -201,8 +207,8 @@ func (r *uhttpdInstanceResource) Delete(ctx context.Context, req resource.Delete
 	if resp.Diagnostics.HasError() {
 		return
 	}
-	if err := r.client.Delete(ctx, "/"+uhttpdInstanceCollection+"/"+state.ID.ValueString()); err != nil {
-		resp.Diagnostics.AddError("Error deleting uhttpd instance", err.Error())
+	if err := r.client.Delete(ctx, "/"+uhttpdInstanceCollection+"/"+state.ID.ValueString(), state.ETag.ValueString()); err != nil {
+		writeErr(&resp.Diagnostics, "deleting", "uhttpd instance", err)
 	}
 }
 

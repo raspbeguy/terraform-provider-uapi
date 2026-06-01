@@ -5,6 +5,7 @@ import (
 
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	dsschema "github.com/hashicorp/terraform-plugin-framework/datasource/schema"
+	"github.com/hashicorp/terraform-plugin-framework/types"
 
 	"github.com/raspbeguy/terraform-provider-uapi/internal/client"
 )
@@ -32,6 +33,7 @@ func (d *snmpdCom2secDataSource) Schema(_ context.Context, _ datasource.SchemaRe
 		Attributes: map[string]dsschema.Attribute{
 			"id":        dsIDAttribute(),
 			"managed":   dsManagedAttribute(),
+			"etag":      dsComputedString("Opaque ETag of the resource's current state."),
 			"secname":   dsComputedString("Security name the community maps to."),
 			"source":    dsComputedString("Source network range or 'default'."),
 			"community": dsComputedString("SNMP community string."),
@@ -45,7 +47,7 @@ func (d *snmpdCom2secDataSource) Read(ctx context.Context, req datasource.ReadRe
 	if resp.Diagnostics.HasError() {
 		return
 	}
-	obj, found, err := d.client.GetObject(ctx, "/"+snmpdCom2secCollection+"/"+m.ID.ValueString())
+	obj, etag, found, err := d.client.GetObject(ctx, "/"+snmpdCom2secCollection+"/"+m.ID.ValueString())
 	if err != nil {
 		resp.Diagnostics.AddError("Error reading snmpd com2sec", err.Error())
 		return
@@ -55,5 +57,6 @@ func (d *snmpdCom2secDataSource) Read(ctx context.Context, req datasource.ReadRe
 		return
 	}
 	(&snmpdCom2secResource{}).read(ctx, obj, &m)
+	m.ETag = types.StringValue(etag)
 	resp.Diagnostics.Append(resp.State.Set(ctx, &m)...)
 }

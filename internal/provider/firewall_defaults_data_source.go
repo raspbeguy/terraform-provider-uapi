@@ -5,6 +5,7 @@ import (
 
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	dsschema "github.com/hashicorp/terraform-plugin-framework/datasource/schema"
+	"github.com/hashicorp/terraform-plugin-framework/types"
 
 	"github.com/raspbeguy/terraform-provider-uapi/internal/client"
 )
@@ -32,6 +33,7 @@ func (d *firewallDefaultsDataSource) Schema(_ context.Context, _ datasource.Sche
 		Attributes: map[string]dsschema.Attribute{
 			"id":                 dsComputedString("Stable id of the defaults section."),
 			"managed":            dsManagedAttribute(),
+			"etag":               dsComputedString("Opaque ETag of the resource's current state."),
 			"input":              dsComputedString("Default policy for input traffic: ACCEPT, REJECT, or DROP."),
 			"output":             dsComputedString("Default policy for output traffic: ACCEPT, REJECT, or DROP."),
 			"forward":            dsComputedString("Default policy for forwarded traffic: ACCEPT, REJECT, or DROP."),
@@ -47,7 +49,7 @@ func (d *firewallDefaultsDataSource) Schema(_ context.Context, _ datasource.Sche
 }
 
 func (d *firewallDefaultsDataSource) Read(ctx context.Context, _ datasource.ReadRequest, resp *datasource.ReadResponse) {
-	obj, found, err := d.client.GetObject(ctx, firewallDefaultsPath)
+	obj, etag, found, err := d.client.GetObject(ctx, firewallDefaultsPath)
 	if err != nil {
 		resp.Diagnostics.AddError("Error reading firewall defaults", err.Error())
 		return
@@ -58,5 +60,6 @@ func (d *firewallDefaultsDataSource) Read(ctx context.Context, _ datasource.Read
 	}
 	var m firewallDefaultsModel
 	(&firewallDefaultsResource{}).read(ctx, obj, &m)
+	m.ETag = types.StringValue(etag)
 	resp.Diagnostics.Append(resp.State.Set(ctx, &m)...)
 }

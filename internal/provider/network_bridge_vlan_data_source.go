@@ -5,6 +5,7 @@ import (
 
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	dsschema "github.com/hashicorp/terraform-plugin-framework/datasource/schema"
+	"github.com/hashicorp/terraform-plugin-framework/types"
 
 	"github.com/raspbeguy/terraform-provider-uapi/internal/client"
 )
@@ -32,6 +33,7 @@ func (d *networkBridgeVlanDataSource) Schema(_ context.Context, _ datasource.Sch
 		Attributes: map[string]dsschema.Attribute{
 			"id":      dsIDAttribute(),
 			"managed": dsManagedAttribute(),
+			"etag":    dsComputedString("Opaque ETag of the resource's current state."),
 			"device":  dsComputedString("Bridge device name this VLAN belongs to."),
 			"vlan":    dsComputedString("VLAN id (1-4094)."),
 			"ports":   dsComputedStringList("Member ports, each as <name>[:t|:u|:*]."),
@@ -45,7 +47,7 @@ func (d *networkBridgeVlanDataSource) Read(ctx context.Context, req datasource.R
 	if resp.Diagnostics.HasError() {
 		return
 	}
-	obj, found, err := d.client.GetObject(ctx, "/"+networkBridgeVlanCollection+"/"+m.ID.ValueString())
+	obj, etag, found, err := d.client.GetObject(ctx, "/"+networkBridgeVlanCollection+"/"+m.ID.ValueString())
 	if err != nil {
 		resp.Diagnostics.AddError("Error reading network bridge VLAN", err.Error())
 		return
@@ -56,5 +58,6 @@ func (d *networkBridgeVlanDataSource) Read(ctx context.Context, req datasource.R
 	}
 	ds := newDiagsink(&resp.Diagnostics)
 	(&networkBridgeVlanResource{}).read(ctx, obj, &m, ds)
+	m.ETag = types.StringValue(etag)
 	resp.Diagnostics.Append(resp.State.Set(ctx, &m)...)
 }

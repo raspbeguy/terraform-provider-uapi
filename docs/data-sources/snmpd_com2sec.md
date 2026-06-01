@@ -28,6 +28,7 @@ data "uapi_snmpd_com2sec" "ro" {
 ### Read-Only
 
 - `community` (String) SNMP community string.
+- `etag` (String) Opaque ETag of the resource's current state.
 - `managed` (Boolean) Whether the underlying uci section is uapi-managed.
 - `secname` (String) Security name the community maps to.
 - `source` (String) Source network range or 'default'.

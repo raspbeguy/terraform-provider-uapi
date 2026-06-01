@@ -5,6 +5,8 @@ import (
 
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	dsschema "github.com/hashicorp/terraform-plugin-framework/datasource/schema"
+	"github.com/hashicorp/terraform-plugin-framework/path"
+	"github.com/hashicorp/terraform-plugin-framework/types"
 
 	"github.com/raspbeguy/terraform-provider-uapi/internal/client"
 )
@@ -32,6 +34,7 @@ func (d *wirelessDeviceDataSource) Schema(_ context.Context, _ datasource.Schema
 		Attributes: map[string]dsschema.Attribute{
 			"id":       dsIDAttribute(),
 			"managed":  dsManagedAttribute(),
+			"etag":     dsComputedString("Opaque ETag of the resource's current state."),
 			"type":     dsComputedString("Driver type: mac80211 or broadcom."),
 			"band":     dsComputedString("Frequency band: 2g, 5g, 6g, or 60g."),
 			"channel":  dsComputedString("Channel number or 'auto'."),
@@ -49,7 +52,7 @@ func (d *wirelessDeviceDataSource) Read(ctx context.Context, req datasource.Read
 	if resp.Diagnostics.HasError() {
 		return
 	}
-	obj, found, err := d.client.GetObject(ctx, "/"+wirelessDeviceCollection+"/"+m.ID.ValueString())
+	obj, etag, found, err := d.client.GetObject(ctx, "/"+wirelessDeviceCollection+"/"+m.ID.ValueString())
 	if err != nil {
 		resp.Diagnostics.AddError("Error reading wireless device", err.Error())
 		return
@@ -59,6 +62,7 @@ func (d *wirelessDeviceDataSource) Read(ctx context.Context, req datasource.Read
 		return
 	}
 	(&wirelessDeviceResource{}).read(ctx, obj, &m)
+	m.ETag = types.StringValue(etag)
 	resp.Diagnostics.Append(resp.State.Set(ctx, &m)...)
 }
 
@@ -85,6 +89,7 @@ func (d *wirelessInterfaceDataSource) Schema(_ context.Context, _ datasource.Sch
 		Attributes: map[string]dsschema.Attribute{
 			"id":         dsIDAttribute(),
 			"managed":    dsManagedAttribute(),
+			"etag":       dsComputedString("Opaque ETag of the resource's current state."),
 			"device":     dsComputedString("Wireless radio id this interface belongs to."),
 			"network":    dsComputedString("Network interface this SSID is bridged to."),
 			"mode":       dsComputedString("Operating mode: ap, sta, adhoc, wds, monitor, or mesh."),
@@ -95,25 +100,29 @@ func (d *wirelessInterfaceDataSource) Schema(_ context.Context, _ datasource.Sch
 			"isolate":    dsComputedBool("Whether clients on this SSID are isolated."),
 			"key":        dsschema.StringAttribute{Computed: true, Sensitive: true, Description: "Always null; the API never returns the key."},
 			"has_key":    dsComputedBool("Whether a key is configured on the router."),
+			"runtime":    wirelessInterfaceRuntimeAttribute(),
 		},
 	}
 }
 
 func (d *wirelessInterfaceDataSource) Read(ctx context.Context, req datasource.ReadRequest, resp *datasource.ReadResponse) {
-	var m wirelessInterfaceModel
-	resp.Diagnostics.Append(req.Config.Get(ctx, &m)...)
+	var id types.String
+	resp.Diagnostics.Append(req.Config.GetAttribute(ctx, path.Root("id"), &id)...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
-	obj, found, err := d.client.GetObject(ctx, "/"+wirelessInterfaceCollection+"/"+m.ID.ValueString())
+	obj, etag, found, err := d.client.GetObject(ctx, "/"+wirelessInterfaceCollection+"/"+id.ValueString())
 	if err != nil {
 		resp.Diagnostics.AddError("Error reading wireless interface", err.Error())
 		return
 	}
 	if !found {
-		resp.Diagnostics.AddError("Wireless interface not found", "No wireless interface with id "+m.ID.ValueString())
+		resp.Diagnostics.AddError("Wireless interface not found", "No wireless interface with id "+id.ValueString())
 		return
 	}
-	(&wirelessInterfaceResource{}).read(ctx, obj, &m)
+	var base wirelessInterfaceModel
+	(&wirelessInterfaceResource{}).read(ctx, obj, &base)
+	base.ETag = types.StringValue(etag)
+	m := wirelessInterfaceDS(base, obj)
 	resp.Diagnostics.Append(resp.State.Set(ctx, &m)...)
 }

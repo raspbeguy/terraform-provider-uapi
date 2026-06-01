@@ -29,6 +29,7 @@ func NewSnmpdAccessResource() resource.Resource {
 type snmpdAccessModel struct {
 	ID      types.String `tfsdk:"id"`
 	Managed types.Bool   `tfsdk:"managed"`
+	ETag    types.String `tfsdk:"etag"`
 	Group   types.String `tfsdk:"group"`
 	Context types.String `tfsdk:"context"`
 	Version types.String `tfsdk:"version"`
@@ -53,6 +54,7 @@ func (r *snmpdAccessResource) Schema(_ context.Context, _ resource.SchemaRequest
 		Attributes: map[string]schema.Attribute{
 			"id":      computedIDAttribute(),
 			"managed": managedAttribute(),
+			"etag":    etagAttribute(),
 			"group": schema.StringAttribute{
 				Required:    true,
 				Description: "Name of the snmpd group this access entry applies to.",
@@ -121,12 +123,13 @@ func (r *snmpdAccessResource) Create(ctx context.Context, req resource.CreateReq
 	if resp.Diagnostics.HasError() {
 		return
 	}
-	obj, err := r.client.Post(ctx, "/"+snmpdAccessCollection, r.body(ctx, plan))
+	obj, etag, err := r.client.Post(ctx, "/"+snmpdAccessCollection, r.body(ctx, plan), "")
 	if err != nil {
-		resp.Diagnostics.AddError("Error creating snmpd access", err.Error())
+		writeErr(&resp.Diagnostics, "creating", "snmpd access", err)
 		return
 	}
 	r.read(ctx, obj, &plan)
+	plan.ETag = types.StringValue(etag)
 	resp.Diagnostics.Append(resp.State.Set(ctx, &plan)...)
 }
 
@@ -136,7 +139,7 @@ func (r *snmpdAccessResource) Read(ctx context.Context, req resource.ReadRequest
 	if resp.Diagnostics.HasError() {
 		return
 	}
-	obj, found, err := r.client.GetObject(ctx, "/"+snmpdAccessCollection+"/"+state.ID.ValueString())
+	obj, etag, found, err := r.client.GetObject(ctx, "/"+snmpdAccessCollection+"/"+state.ID.ValueString())
 	if err != nil {
 		resp.Diagnostics.AddError("Error reading snmpd access", err.Error())
 		return
@@ -146,21 +149,24 @@ func (r *snmpdAccessResource) Read(ctx context.Context, req resource.ReadRequest
 		return
 	}
 	r.read(ctx, obj, &state)
+	state.ETag = types.StringValue(etag)
 	resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)
 }
 
 func (r *snmpdAccessResource) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
-	var plan snmpdAccessModel
+	var plan, state snmpdAccessModel
 	resp.Diagnostics.Append(req.Plan.Get(ctx, &plan)...)
+	resp.Diagnostics.Append(req.State.Get(ctx, &state)...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
-	obj, err := r.client.Put(ctx, "/"+snmpdAccessCollection+"/"+plan.ID.ValueString(), r.body(ctx, plan))
+	obj, etag, err := r.client.Put(ctx, "/"+snmpdAccessCollection+"/"+plan.ID.ValueString(), r.body(ctx, plan), state.ETag.ValueString())
 	if err != nil {
-		resp.Diagnostics.AddError("Error updating snmpd access", err.Error())
+		writeErr(&resp.Diagnostics, "updating", "snmpd access", err)
 		return
 	}
 	r.read(ctx, obj, &plan)
+	plan.ETag = types.StringValue(etag)
 	resp.Diagnostics.Append(resp.State.Set(ctx, &plan)...)
 }
 
@@ -170,8 +176,8 @@ func (r *snmpdAccessResource) Delete(ctx context.Context, req resource.DeleteReq
 	if resp.Diagnostics.HasError() {
 		return
 	}
-	if err := r.client.Delete(ctx, "/"+snmpdAccessCollection+"/"+state.ID.ValueString()); err != nil {
-		resp.Diagnostics.AddError("Error deleting snmpd access", err.Error())
+	if err := r.client.Delete(ctx, "/"+snmpdAccessCollection+"/"+state.ID.ValueString(), state.ETag.ValueString()); err != nil {
+		writeErr(&resp.Diagnostics, "deleting", "snmpd access", err)
 	}
 }
 

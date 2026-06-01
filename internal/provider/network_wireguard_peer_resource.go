@@ -29,6 +29,7 @@ func NewNetworkWireguardPeerResource() resource.Resource {
 type networkWireguardPeerModel struct {
 	ID                  types.String `tfsdk:"id"`
 	Managed             types.Bool   `tfsdk:"managed"`
+	ETag                types.String `tfsdk:"etag"`
 	Interface           types.String `tfsdk:"interface"`
 	Description         types.String `tfsdk:"description"`
 	PublicKey           types.String `tfsdk:"public_key"`
@@ -56,6 +57,7 @@ func (r *networkWireguardPeerResource) Schema(_ context.Context, _ resource.Sche
 		Attributes: map[string]schema.Attribute{
 			"id":      computedIDAttribute(),
 			"managed": managedAttribute(),
+			"etag":    etagAttribute(),
 			"interface": schema.StringAttribute{
 				Required:    true,
 				Description: "Parent WireGuard interface name. Must reference an existing interface with proto=wireguard.",
@@ -147,12 +149,13 @@ func (r *networkWireguardPeerResource) Create(ctx context.Context, req resource.
 	if resp.Diagnostics.HasError() {
 		return
 	}
-	obj, err := r.client.Post(ctx, "/"+networkWireguardPeerCollection, body)
+	obj, etag, err := r.client.Post(ctx, "/"+networkWireguardPeerCollection, body, "")
 	if err != nil {
-		resp.Diagnostics.AddError("Error creating network WireGuard peer", err.Error())
+		writeErr(&resp.Diagnostics, "creating", "network WireGuard peer", err)
 		return
 	}
 	r.read(ctx, obj, &plan, ds)
+	plan.ETag = types.StringValue(etag)
 	resp.Diagnostics.Append(resp.State.Set(ctx, &plan)...)
 }
 
@@ -162,7 +165,7 @@ func (r *networkWireguardPeerResource) Read(ctx context.Context, req resource.Re
 	if resp.Diagnostics.HasError() {
 		return
 	}
-	obj, found, err := r.client.GetObject(ctx, "/"+networkWireguardPeerCollection+"/"+state.ID.ValueString())
+	obj, etag, found, err := r.client.GetObject(ctx, "/"+networkWireguardPeerCollection+"/"+state.ID.ValueString())
 	if err != nil {
 		resp.Diagnostics.AddError("Error reading network WireGuard peer", err.Error())
 		return
@@ -173,12 +176,14 @@ func (r *networkWireguardPeerResource) Read(ctx context.Context, req resource.Re
 	}
 	ds := newDiagsink(&resp.Diagnostics)
 	r.read(ctx, obj, &state, ds)
+	state.ETag = types.StringValue(etag)
 	resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)
 }
 
 func (r *networkWireguardPeerResource) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
-	var plan networkWireguardPeerModel
+	var plan, state networkWireguardPeerModel
 	resp.Diagnostics.Append(req.Plan.Get(ctx, &plan)...)
+	resp.Diagnostics.Append(req.State.Get(ctx, &state)...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
@@ -187,12 +192,13 @@ func (r *networkWireguardPeerResource) Update(ctx context.Context, req resource.
 	if resp.Diagnostics.HasError() {
 		return
 	}
-	obj, err := r.client.Put(ctx, "/"+networkWireguardPeerCollection+"/"+plan.ID.ValueString(), body)
+	obj, etag, err := r.client.Put(ctx, "/"+networkWireguardPeerCollection+"/"+plan.ID.ValueString(), body, state.ETag.ValueString())
 	if err != nil {
-		resp.Diagnostics.AddError("Error updating network WireGuard peer", err.Error())
+		writeErr(&resp.Diagnostics, "updating", "network WireGuard peer", err)
 		return
 	}
 	r.read(ctx, obj, &plan, ds)
+	plan.ETag = types.StringValue(etag)
 	resp.Diagnostics.Append(resp.State.Set(ctx, &plan)...)
 }
 
@@ -202,8 +208,8 @@ func (r *networkWireguardPeerResource) Delete(ctx context.Context, req resource.
 	if resp.Diagnostics.HasError() {
 		return
 	}
-	if err := r.client.Delete(ctx, "/"+networkWireguardPeerCollection+"/"+state.ID.ValueString()); err != nil {
-		resp.Diagnostics.AddError("Error deleting network WireGuard peer", err.Error())
+	if err := r.client.Delete(ctx, "/"+networkWireguardPeerCollection+"/"+state.ID.ValueString(), state.ETag.ValueString()); err != nil {
+		writeErr(&resp.Diagnostics, "deleting", "network WireGuard peer", err)
 	}
 }
 

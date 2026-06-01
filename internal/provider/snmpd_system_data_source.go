@@ -5,6 +5,7 @@ import (
 
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	dsschema "github.com/hashicorp/terraform-plugin-framework/datasource/schema"
+	"github.com/hashicorp/terraform-plugin-framework/types"
 
 	"github.com/raspbeguy/terraform-provider-uapi/internal/client"
 )
@@ -32,6 +33,7 @@ func (d *snmpdSystemDataSource) Schema(_ context.Context, _ datasource.SchemaReq
 		Attributes: map[string]dsschema.Attribute{
 			"id":            dsComputedString("Stable id of the snmpd system section."),
 			"managed":       dsManagedAttribute(),
+			"etag":          dsComputedString("Opaque ETag of the resource's current state."),
 			"sys_location":  dsComputedString("Value reported as sysLocation (the device's physical location)."),
 			"sys_contact":   dsComputedString("Value reported as sysContact (the administrative contact)."),
 			"sys_name":      dsComputedString("Value reported as sysName (the administratively assigned name)."),
@@ -43,7 +45,7 @@ func (d *snmpdSystemDataSource) Schema(_ context.Context, _ datasource.SchemaReq
 }
 
 func (d *snmpdSystemDataSource) Read(ctx context.Context, _ datasource.ReadRequest, resp *datasource.ReadResponse) {
-	obj, found, err := d.client.GetObject(ctx, snmpdSystemPath)
+	obj, etag, found, err := d.client.GetObject(ctx, snmpdSystemPath)
 	if err != nil {
 		resp.Diagnostics.AddError("Error reading snmpd system identity", err.Error())
 		return
@@ -54,5 +56,6 @@ func (d *snmpdSystemDataSource) Read(ctx context.Context, _ datasource.ReadReque
 	}
 	var m snmpdSystemModel
 	(&snmpdSystemResource{}).read(ctx, obj, &m)
+	m.ETag = types.StringValue(etag)
 	resp.Diagnostics.Append(resp.State.Set(ctx, &m)...)
 }

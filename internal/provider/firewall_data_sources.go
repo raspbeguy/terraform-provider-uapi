@@ -33,6 +33,7 @@ func (d *firewallRuleDataSource) Schema(_ context.Context, _ datasource.SchemaRe
 		Attributes: map[string]dsschema.Attribute{
 			"id":      dsIDAttribute(),
 			"managed": dsManagedAttribute(),
+			"etag":    dsComputedString("Opaque ETag of the resource's current state."),
 			"name":    dsComputedString("Rule name."),
 			"target":  dsComputedString("Rule action: ACCEPT, REJECT, DROP, NOTRACK, or MARK."),
 			"enabled": dsComputedBool("Whether the rule is active."),
@@ -60,7 +61,7 @@ func (d *firewallRuleDataSource) Read(ctx context.Context, req datasource.ReadRe
 	if resp.Diagnostics.HasError() {
 		return
 	}
-	obj, found, err := d.client.GetObject(ctx, "/"+firewallRuleCollection+"/"+m.ID.ValueString())
+	obj, etag, found, err := d.client.GetObject(ctx, "/"+firewallRuleCollection+"/"+m.ID.ValueString())
 	if err != nil {
 		resp.Diagnostics.AddError("Error reading firewall rule", err.Error())
 		return
@@ -71,6 +72,7 @@ func (d *firewallRuleDataSource) Read(ctx context.Context, req datasource.ReadRe
 	}
 	ds := newDiagsink(&resp.Diagnostics)
 	(&firewallRuleResource{}).read(ctx, obj, &m, ds)
+	m.ETag = types.StringValue(etag)
 	resp.Diagnostics.Append(resp.State.Set(ctx, &m)...)
 }
 
@@ -97,6 +99,7 @@ func (d *firewallZoneDataSource) Schema(_ context.Context, _ datasource.SchemaRe
 		Attributes: map[string]dsschema.Attribute{
 			"id":      dsIDAttribute(),
 			"managed": dsManagedAttribute(),
+			"etag":    dsComputedString("Opaque ETag of the resource's current state."),
 			"name":    dsComputedString("Zone name."),
 			"input":   dsComputedString("Default policy for input traffic: ACCEPT, REJECT, or DROP."),
 			"output":  dsComputedString("Default policy for output traffic."),
@@ -115,7 +118,7 @@ func (d *firewallZoneDataSource) Read(ctx context.Context, req datasource.ReadRe
 	if resp.Diagnostics.HasError() {
 		return
 	}
-	obj, found, err := d.client.GetObject(ctx, "/"+firewallZoneCollection+"/"+m.ID.ValueString())
+	obj, etag, found, err := d.client.GetObject(ctx, "/"+firewallZoneCollection+"/"+m.ID.ValueString())
 	if err != nil {
 		resp.Diagnostics.AddError("Error reading firewall zone", err.Error())
 		return
@@ -126,6 +129,7 @@ func (d *firewallZoneDataSource) Read(ctx context.Context, req datasource.ReadRe
 	}
 	ds := newDiagsink(&resp.Diagnostics)
 	(&firewallZoneResource{}).read(ctx, obj, &m, ds)
+	m.ETag = types.StringValue(etag)
 	resp.Diagnostics.Append(resp.State.Set(ctx, &m)...)
 }
 
@@ -152,6 +156,7 @@ func (d *firewallRedirectDataSource) Schema(_ context.Context, _ datasource.Sche
 		Attributes: map[string]dsschema.Attribute{
 			"id":      dsIDAttribute(),
 			"managed": dsManagedAttribute(),
+			"etag":    dsComputedString("Opaque ETag of the resource's current state."),
 			"name":    dsComputedString("Redirect name."),
 			"target":  dsComputedString("Redirect type: DNAT or SNAT."),
 			"enabled": dsComputedBool("Whether the redirect is active."),
@@ -170,6 +175,9 @@ func (d *firewallRedirectDataSource) Schema(_ context.Context, _ datasource.Sche
 					"family":    dsComputedString("Address family: any, ipv4, or ipv6."),
 				},
 			},
+			"reflection":      dsComputedBool("Whether NAT loopback / hairpinning is enabled for this redirect."),
+			"reflection_src":  dsComputedString("Source address used for hairpinned packets: internal or external."),
+			"reflection_zone": dsComputedStringList("Firewall zones in which NAT reflection is applied."),
 		},
 	}
 }
@@ -180,7 +188,7 @@ func (d *firewallRedirectDataSource) Read(ctx context.Context, req datasource.Re
 	if resp.Diagnostics.HasError() {
 		return
 	}
-	obj, found, err := d.client.GetObject(ctx, "/"+firewallRedirectCollection+"/"+m.ID.ValueString())
+	obj, etag, found, err := d.client.GetObject(ctx, "/"+firewallRedirectCollection+"/"+m.ID.ValueString())
 	if err != nil {
 		resp.Diagnostics.AddError("Error reading firewall redirect", err.Error())
 		return
@@ -191,6 +199,7 @@ func (d *firewallRedirectDataSource) Read(ctx context.Context, req datasource.Re
 	}
 	ds := newDiagsink(&resp.Diagnostics)
 	(&firewallRedirectResource{}).read(ctx, obj, &m, ds)
+	m.ETag = types.StringValue(etag)
 	resp.Diagnostics.Append(resp.State.Set(ctx, &m)...)
 }
 

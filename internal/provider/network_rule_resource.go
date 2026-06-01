@@ -29,6 +29,7 @@ func NewNetworkRuleResource() resource.Resource {
 type networkRuleModel struct {
 	ID       types.String `tfsdk:"id"`
 	Managed  types.Bool   `tfsdk:"managed"`
+	ETag     types.String `tfsdk:"etag"`
 	In       types.String `tfsdk:"in"`
 	Out      types.String `tfsdk:"out"`
 	Src      types.String `tfsdk:"src"`
@@ -55,6 +56,7 @@ func (r *networkRuleResource) Schema(_ context.Context, _ resource.SchemaRequest
 		Attributes: map[string]schema.Attribute{
 			"id":      computedIDAttribute(),
 			"managed": managedAttribute(),
+			"etag":    etagAttribute(),
 			"in": schema.StringAttribute{
 				Optional:    true,
 				Description: "Incoming interface selector.",
@@ -129,12 +131,13 @@ func (r *networkRuleResource) Create(ctx context.Context, req resource.CreateReq
 	if resp.Diagnostics.HasError() {
 		return
 	}
-	obj, err := r.client.Post(ctx, "/"+networkRuleCollection, r.body(ctx, plan))
+	obj, etag, err := r.client.Post(ctx, "/"+networkRuleCollection, r.body(ctx, plan), "")
 	if err != nil {
-		resp.Diagnostics.AddError("Error creating network rule", err.Error())
+		writeErr(&resp.Diagnostics, "creating", "network rule", err)
 		return
 	}
 	r.read(ctx, obj, &plan)
+	plan.ETag = types.StringValue(etag)
 	resp.Diagnostics.Append(resp.State.Set(ctx, &plan)...)
 }
 
@@ -144,7 +147,7 @@ func (r *networkRuleResource) Read(ctx context.Context, req resource.ReadRequest
 	if resp.Diagnostics.HasError() {
 		return
 	}
-	obj, found, err := r.client.GetObject(ctx, "/"+networkRuleCollection+"/"+state.ID.ValueString())
+	obj, etag, found, err := r.client.GetObject(ctx, "/"+networkRuleCollection+"/"+state.ID.ValueString())
 	if err != nil {
 		resp.Diagnostics.AddError("Error reading network rule", err.Error())
 		return
@@ -154,21 +157,24 @@ func (r *networkRuleResource) Read(ctx context.Context, req resource.ReadRequest
 		return
 	}
 	r.read(ctx, obj, &state)
+	state.ETag = types.StringValue(etag)
 	resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)
 }
 
 func (r *networkRuleResource) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
-	var plan networkRuleModel
+	var plan, state networkRuleModel
 	resp.Diagnostics.Append(req.Plan.Get(ctx, &plan)...)
+	resp.Diagnostics.Append(req.State.Get(ctx, &state)...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
-	obj, err := r.client.Put(ctx, "/"+networkRuleCollection+"/"+plan.ID.ValueString(), r.body(ctx, plan))
+	obj, etag, err := r.client.Put(ctx, "/"+networkRuleCollection+"/"+plan.ID.ValueString(), r.body(ctx, plan), state.ETag.ValueString())
 	if err != nil {
-		resp.Diagnostics.AddError("Error updating network rule", err.Error())
+		writeErr(&resp.Diagnostics, "updating", "network rule", err)
 		return
 	}
 	r.read(ctx, obj, &plan)
+	plan.ETag = types.StringValue(etag)
 	resp.Diagnostics.Append(resp.State.Set(ctx, &plan)...)
 }
 
@@ -178,8 +184,8 @@ func (r *networkRuleResource) Delete(ctx context.Context, req resource.DeleteReq
 	if resp.Diagnostics.HasError() {
 		return
 	}
-	if err := r.client.Delete(ctx, "/"+networkRuleCollection+"/"+state.ID.ValueString()); err != nil {
-		resp.Diagnostics.AddError("Error deleting network rule", err.Error())
+	if err := r.client.Delete(ctx, "/"+networkRuleCollection+"/"+state.ID.ValueString(), state.ETag.ValueString()); err != nil {
+		writeErr(&resp.Diagnostics, "deleting", "network rule", err)
 	}
 }
 

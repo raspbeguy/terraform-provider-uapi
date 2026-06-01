@@ -29,6 +29,7 @@ data "uapi_system_timeserver" "ntp" {
 
 - `enable_server` (Boolean) Whether the router acts as an NTP server for the local network.
 - `enabled` (Boolean) Whether the NTP client is enabled.
+- `etag` (String) Opaque ETag of the resource's current state.
 - `interface` (String) Network interface the NTP server binds to.
 - `managed` (Boolean) Whether the underlying uci section is uapi-managed.
 - `server` (List of String) Upstream NTP server hostnames.

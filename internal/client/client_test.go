@@ -9,8 +9,7 @@ import (
 )
 
 func testClient(url string) *Client {
-	c := New(url, "tok", false)
-	return c
+	return New(url, "tok", false)
 }
 
 func TestGetObjectFound(t *testing.T) {
@@ -18,23 +17,24 @@ func TestGetObjectFound(t *testing.T) {
 		if got := r.Header.Get("Authorization"); got != "Bearer tok" {
 			t.Errorf("missing bearer header, got %q", got)
 		}
+		w.Header().Set("ETag", `"abc123"`)
 		w.Header().Set("Content-Type", "application/json")
 		_, _ = w.Write([]byte(`{"id":"r_1","managed":true,"enabled":true}`))
 	}))
 	defer srv.Close()
 
-	obj, found, err := testClient(srv.URL).GetObject(context.Background(), "/firewall/rules/r_1")
+	obj, etag, found, err := testClient(srv.URL).GetObject(context.Background(), "/firewall/rules/r_1")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	if !found {
 		t.Fatal("expected found")
 	}
-	if obj["id"] != "r_1" {
-		t.Errorf("id = %v", obj["id"])
+	if etag != `"abc123"` {
+		t.Errorf("etag = %q", etag)
 	}
-	if obj["managed"] != true {
-		t.Errorf("managed = %v", obj["managed"])
+	if obj["id"] != "r_1" || obj["managed"] != true {
+		t.Errorf("obj = %+v", obj)
 	}
 }
 
@@ -45,7 +45,7 @@ func TestGetObjectNotFound(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	_, found, err := testClient(srv.URL).GetObject(context.Background(), "/x/y")
+	_, _, found, err := testClient(srv.URL).GetObject(context.Background(), "/x/y")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -61,7 +61,7 @@ func TestValidationErrorEnvelope(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	_, err := testClient(srv.URL).Post(context.Background(), "/firewall/rules", map[string]any{})
+	_, _, err := testClient(srv.URL).Post(context.Background(), "/firewall/rules", map[string]any{}, "")
 	if err == nil {
 		t.Fatal("expected error")
 	}
@@ -74,6 +74,42 @@ func TestValidationErrorEnvelope(t *testing.T) {
 	}
 	if len(apiErr.Errors) != 1 || apiErr.Errors[0].Field != "target" {
 		t.Errorf("field errors not parsed: %+v", apiErr.Errors)
+	}
+}
+
+func TestIfMatchSentAndETagReturned(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// uapi reads If-Match from the header OR the ?if_match= query param; assert both carry it.
+		if r.URL.Query().Get("if_match") != `"v1"` {
+			t.Errorf("if_match query = %q", r.URL.Query().Get("if_match"))
+		}
+		if r.Header.Get("If-Match") != `"v1"` {
+			t.Errorf("If-Match header = %q", r.Header.Get("If-Match"))
+		}
+		w.Header().Set("ETag", `"v2"`)
+		_, _ = w.Write([]byte(`{"id":"r_1"}`))
+	}))
+	defer srv.Close()
+
+	_, etag, err := testClient(srv.URL).Put(context.Background(), "/firewall/rules/r_1", map[string]any{"target": "ACCEPT"}, `"v1"`)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if etag != `"v2"` {
+		t.Errorf("new etag = %q", etag)
+	}
+}
+
+func TestPreconditionFailed(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusPreconditionFailed)
+		_, _ = w.Write([]byte(`{"code":"precondition_failed","message":"stale"}`))
+	}))
+	defer srv.Close()
+
+	_, _, err := testClient(srv.URL).Put(context.Background(), "/firewall/rules/r_1", map[string]any{}, `"stale"`)
+	if !IsPreconditionFailed(err) {
+		t.Fatalf("expected precondition-failed, got %v", err)
 	}
 }
 
@@ -91,7 +127,7 @@ func TestRetryOnLocked(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	obj, err := testClient(srv.URL).Put(context.Background(), "/firewall/rules/r_1", map[string]any{"target": "ACCEPT"})
+	obj, _, err := testClient(srv.URL).Put(context.Background(), "/firewall/rules/r_1", map[string]any{"target": "ACCEPT"}, "")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -111,7 +147,7 @@ func TestLockedExhaustsRetries(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	_, err := testClient(srv.URL).Post(context.Background(), "/firewall/rules", map[string]any{})
+	_, _, err := testClient(srv.URL).Post(context.Background(), "/firewall/rules", map[string]any{}, "")
 	if err == nil {
 		t.Fatal("expected error after exhausting retries")
 	}
@@ -127,7 +163,7 @@ func TestDeleteToleratesNotFound(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	if err := testClient(srv.URL).Delete(context.Background(), "/firewall/rules/gone"); err != nil {
+	if err := testClient(srv.URL).Delete(context.Background(), "/firewall/rules/gone", ""); err != nil {
 		t.Fatalf("delete should tolerate 404, got %v", err)
 	}
 }

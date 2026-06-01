@@ -47,7 +47,7 @@ func (d *packageFeedDataSource) Read(ctx context.Context, req datasource.ReadReq
 	if resp.Diagnostics.HasError() {
 		return
 	}
-	obj, found, err := d.client.GetObject(ctx, "/"+packageFeedCollection+"/"+m.ID.ValueString())
+	obj, _, found, err := d.client.GetObject(ctx, "/"+packageFeedCollection+"/"+m.ID.ValueString())
 	if err != nil {
 		resp.Diagnostics.AddError("Error reading package feed", err.Error())
 		return

@@ -29,6 +29,7 @@ func TestProviderSchema(t *testing.T) {
 		"uapi_network_interface", "uapi_network_device",
 		"uapi_wireless_device", "uapi_wireless_interface",
 		"uapi_dhcp_host", "uapi_system",
+		"uapi_authorized_key", "uapi_system_password",
 	}
 	for _, name := range wantResources {
 		if _, ok := resp.ResourceSchemas[name]; !ok {
@@ -41,6 +42,7 @@ func TestProviderSchema(t *testing.T) {
 		"uapi_network_interface", "uapi_network_device",
 		"uapi_wireless_device", "uapi_wireless_interface",
 		"uapi_dhcp_host", "uapi_system", "uapi_dhcp_leases",
+		"uapi_dhcp_leases6", "uapi_authorized_key",
 	}
 	for _, name := range wantDataSources {
 		if _, ok := resp.DataSourceSchemas[name]; !ok {

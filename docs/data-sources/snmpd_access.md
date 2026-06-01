@@ -28,6 +28,7 @@ data "uapi_snmpd_access" "public" {
 ### Read-Only
 
 - `context` (String) SNMP context the access entry matches.
+- `etag` (String) Opaque ETag of the resource's current state.
 - `group` (String) Name of the snmpd group this access entry applies to.
 - `level` (String) Required security level: noauth, auth, or priv.
 - `managed` (Boolean) Whether the underlying uci section is uapi-managed.

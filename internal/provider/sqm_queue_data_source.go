@@ -5,6 +5,7 @@ import (
 
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	dsschema "github.com/hashicorp/terraform-plugin-framework/datasource/schema"
+	"github.com/hashicorp/terraform-plugin-framework/types"
 
 	"github.com/raspbeguy/terraform-provider-uapi/internal/client"
 )
@@ -32,6 +33,7 @@ func (d *sqmQueueDataSource) Schema(_ context.Context, _ datasource.SchemaReques
 		Attributes: map[string]dsschema.Attribute{
 			"id":        dsIDAttribute(),
 			"managed":   dsManagedAttribute(),
+			"etag":      dsComputedString("Opaque ETag of the resource's current state."),
 			"enabled":   dsComputedBool("Whether the queue is enabled."),
 			"interface": dsComputedString("Network interface the queue is attached to."),
 			"download":  dsComputedString("Download rate limit in kbit/s."),
@@ -50,7 +52,7 @@ func (d *sqmQueueDataSource) Read(ctx context.Context, req datasource.ReadReques
 	if resp.Diagnostics.HasError() {
 		return
 	}
-	obj, found, err := d.client.GetObject(ctx, "/"+sqmQueueCollection+"/"+m.ID.ValueString())
+	obj, etag, found, err := d.client.GetObject(ctx, "/"+sqmQueueCollection+"/"+m.ID.ValueString())
 	if err != nil {
 		resp.Diagnostics.AddError("Error reading SQM queue", err.Error())
 		return
@@ -60,5 +62,6 @@ func (d *sqmQueueDataSource) Read(ctx context.Context, req datasource.ReadReques
 		return
 	}
 	(&sqmQueueResource{}).read(ctx, obj, &m)
+	m.ETag = types.StringValue(etag)
 	resp.Diagnostics.Append(resp.State.Set(ctx, &m)...)
 }

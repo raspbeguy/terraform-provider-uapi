@@ -5,6 +5,7 @@ import (
 
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	dsschema "github.com/hashicorp/terraform-plugin-framework/datasource/schema"
+	"github.com/hashicorp/terraform-plugin-framework/types"
 
 	"github.com/raspbeguy/terraform-provider-uapi/internal/client"
 )
@@ -32,6 +33,7 @@ func (d *snmpdAgentDataSource) Schema(_ context.Context, _ datasource.SchemaRequ
 		Attributes: map[string]dsschema.Attribute{
 			"id":           dsIDAttribute(),
 			"managed":      dsManagedAttribute(),
+			"etag":         dsComputedString("Opaque ETag of the resource's current state."),
 			"agentaddress": dsComputedStringList("Addresses the SNMP agent listens on (e.g. UDP:161, udp6:161)."),
 		},
 	}
@@ -43,7 +45,7 @@ func (d *snmpdAgentDataSource) Read(ctx context.Context, req datasource.ReadRequ
 	if resp.Diagnostics.HasError() {
 		return
 	}
-	obj, found, err := d.client.GetObject(ctx, "/"+snmpdAgentCollection+"/"+m.ID.ValueString())
+	obj, etag, found, err := d.client.GetObject(ctx, "/"+snmpdAgentCollection+"/"+m.ID.ValueString())
 	if err != nil {
 		resp.Diagnostics.AddError("Error reading snmpd agent", err.Error())
 		return
@@ -54,5 +56,6 @@ func (d *snmpdAgentDataSource) Read(ctx context.Context, req datasource.ReadRequ
 	}
 	ds := newDiagsink(&resp.Diagnostics)
 	(&snmpdAgentResource{}).read(ctx, obj, &m, ds)
+	m.ETag = types.StringValue(etag)
 	resp.Diagnostics.Append(resp.State.Set(ctx, &m)...)
 }

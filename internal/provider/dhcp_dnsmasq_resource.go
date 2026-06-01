@@ -30,6 +30,7 @@ func NewDhcpDnsmasqResource() resource.Resource {
 type dhcpDnsmasqModel struct {
 	ID               types.String `tfsdk:"id"`
 	Managed          types.Bool   `tfsdk:"managed"`
+	ETag             types.String `tfsdk:"etag"`
 	Domain           types.String `tfsdk:"domain"`
 	Local            types.String `tfsdk:"local"`
 	Noresolv         types.Bool   `tfsdk:"noresolv"`
@@ -65,6 +66,7 @@ func (r *dhcpDnsmasqResource) Schema(_ context.Context, _ resource.SchemaRequest
 		Attributes: map[string]schema.Attribute{
 			"id":      computedIDAttribute(),
 			"managed": managedAttribute(),
+			"etag":    etagAttribute(),
 			"domain": schema.StringAttribute{
 				Optional:    true,
 				Description: "Local DNS domain.",
@@ -159,12 +161,13 @@ func (r *dhcpDnsmasqResource) Create(ctx context.Context, req resource.CreateReq
 	if resp.Diagnostics.HasError() {
 		return
 	}
-	obj, err := r.client.Patch(ctx, dhcpDnsmasqPath, body)
+	obj, etag, err := r.client.Patch(ctx, dhcpDnsmasqPath, body, "")
 	if err != nil {
-		resp.Diagnostics.AddError("Error configuring dnsmasq settings", err.Error())
+		writeErr(&resp.Diagnostics, "configuring", "dnsmasq settings", err)
 		return
 	}
 	r.read(ctx, obj, &plan, ds)
+	plan.ETag = types.StringValue(etag)
 	resp.Diagnostics.Append(resp.State.Set(ctx, &plan)...)
 }
 
@@ -174,7 +177,7 @@ func (r *dhcpDnsmasqResource) Read(ctx context.Context, req resource.ReadRequest
 	if resp.Diagnostics.HasError() {
 		return
 	}
-	obj, found, err := r.client.GetObject(ctx, dhcpDnsmasqPath)
+	obj, etag, found, err := r.client.GetObject(ctx, dhcpDnsmasqPath)
 	if err != nil {
 		resp.Diagnostics.AddError("Error reading dnsmasq settings", err.Error())
 		return
@@ -185,12 +188,14 @@ func (r *dhcpDnsmasqResource) Read(ctx context.Context, req resource.ReadRequest
 	}
 	ds := newDiagsink(&resp.Diagnostics)
 	r.read(ctx, obj, &state, ds)
+	state.ETag = types.StringValue(etag)
 	resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)
 }
 
 func (r *dhcpDnsmasqResource) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
-	var plan dhcpDnsmasqModel
+	var plan, state dhcpDnsmasqModel
 	resp.Diagnostics.Append(req.Plan.Get(ctx, &plan)...)
+	resp.Diagnostics.Append(req.State.Get(ctx, &state)...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
@@ -199,12 +204,13 @@ func (r *dhcpDnsmasqResource) Update(ctx context.Context, req resource.UpdateReq
 	if resp.Diagnostics.HasError() {
 		return
 	}
-	obj, err := r.client.Patch(ctx, dhcpDnsmasqPath, body)
+	obj, etag, err := r.client.Patch(ctx, dhcpDnsmasqPath, body, state.ETag.ValueString())
 	if err != nil {
-		resp.Diagnostics.AddError("Error updating dnsmasq settings", err.Error())
+		writeErr(&resp.Diagnostics, "updating", "dnsmasq settings", err)
 		return
 	}
 	r.read(ctx, obj, &plan, ds)
+	plan.ETag = types.StringValue(etag)
 	resp.Diagnostics.Append(resp.State.Set(ctx, &plan)...)
 }
 
