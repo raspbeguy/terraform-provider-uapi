@@ -1,6 +1,6 @@
 # terraform-provider-uapi
 
-A Terraform / OpenTofu provider for [uapi](../uapi), the native HTTP REST API for OpenWrt.
+A Terraform / OpenTofu provider for [uapi](https://github.com/raspbeguy/uapi), the native HTTP REST API for OpenWrt.
 It manages OpenWrt configuration (firewall, network, wireless, DHCP, system) through uapi's
 curated endpoints, which expose stable resource IDs and atomic, transactional writes.
 

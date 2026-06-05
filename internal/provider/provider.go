@@ -44,7 +44,8 @@ func (p *uapiProvider) Metadata(_ context.Context, _ provider.MetadataRequest, r
 func (p *uapiProvider) Schema(_ context.Context, _ provider.SchemaRequest, resp *provider.SchemaResponse) {
 	resp.Schema = schema.Schema{
 		Description: "Manage OpenWrt configuration through the uapi REST API. " +
-			"Only curated endpoints are exposed; the /raw passthrough is intentionally not supported.",
+			"Only curated endpoints are exposed; the /raw passthrough is intentionally not supported. " +
+			"See the [uapi project](https://github.com/raspbeguy/uapi) for the API this provider wraps.",
 		Attributes: map[string]schema.Attribute{
 			"endpoint": schema.StringAttribute{
 				Optional: true,
