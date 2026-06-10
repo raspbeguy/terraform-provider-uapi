@@ -36,6 +36,7 @@ resource "uapi_network_interface" "example" {
 - `dns` (List of String) uci option dns.
 - `gateway` (String) uci option gateway.
 - `hostname` (String) uci option hostname.
+- `id` (String) Resource id. Set it at create to choose the uci section name (e.g. `lan`); omit it to let uapi assign a prefixed ULID. Create-only: changing it forces replacement.
 - `ip4table` (String) uci option ip4table.
 - `ip6assign` (Number) uci option ip6assign.
 - `ip6hint` (String) uci option ip6hint.
@@ -46,7 +47,7 @@ resource "uapi_network_interface" "example" {
 - `listen_port` (Number) uci option listen_port.
 - `metric` (Number) uci option metric.
 - `mtu` (Number) uci option mtu.
-- `name` (String) Create-time only; picks the uci section name (which becomes the uapi `id`). When omitted, the server emits a 14-char `wg_<rand>` for proto=wireguard (fits Linux IFNAMSIZ for the kernel netdev) or a 28-char ULID otherwise. Useful for LuCI parity (`lan`, `wan`, `guest`) and readable cross-references.
+- `name` (String, Deprecated) DEPRECATED in 2.2.0: use `id` instead (the universal section-name input across every resource). Both are accepted during the deprecation window; if both are supplied they must match. `name` is scheduled for removal in v3. See docs/deprecations.md.
 - `netmask` (String) uci option netmask.
 - `nohostroute` (Boolean) uci option nohostroute.
 - `peerdns` (Boolean) uci option peerdns.
@@ -58,7 +59,6 @@ resource "uapi_network_interface" "example" {
 
 - `etag` (String) Opaque ETag of the resource's current state, used for If-Match optimistic concurrency.
 - `has_private_key` (Boolean) Whether a private key is configured.
-- `id` (String) Stable resource id assigned by uapi (a prefixed ULID).
 - `managed` (Boolean) Whether the underlying uci section is uapi-managed.
 
 ## Import

@@ -27,6 +27,7 @@ resource "uapi_uhttpd_instance" "example" {
 - `error_page` (String) uci option error_page.
 - `home` (String) uci option home.
 - `http_keepalive` (Number) uci option http_keepalive.
+- `id` (String) Resource id. Set it at create to choose the uci section name (e.g. `lan`); omit it to let uapi assign a prefixed ULID. Create-only: changing it forces replacement.
 - `index_page` (List of String) uci option index_page.
 - `key` (String) Encryption passphrase. Write-only: never returned by the API.
 - `listen_http` (List of String) uci option listen_http.
@@ -45,7 +46,6 @@ resource "uapi_uhttpd_instance" "example" {
 ### Read-Only
 
 - `etag` (String) Opaque ETag of the resource's current state, used for If-Match optimistic concurrency.
-- `id` (String) Stable resource id assigned by uapi (a prefixed ULID).
 - `managed` (Boolean) Whether the underlying uci section is uapi-managed.
 
 ## Import

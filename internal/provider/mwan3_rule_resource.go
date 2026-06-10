@@ -51,7 +51,7 @@ func (r *mwan3RuleResource) Schema(_ context.Context, _ resource.SchemaRequest, 
 	resp.Schema = schema.Schema{
 		Description: "Mwan3 rule.",
 		Attributes: map[string]schema.Attribute{
-			"id":         computedIDAttribute(),
+			"id":         optionalComputedIDAttribute(),
 			"managed":    managedAttribute(),
 			"etag":       etagAttribute(),
 			"dest_ip":    optionalComputedString("Destination IP addresses or CIDRs."),
@@ -69,8 +69,11 @@ func (r *mwan3RuleResource) Schema(_ context.Context, _ resource.SchemaRequest, 
 	}
 }
 
-func (r *mwan3RuleResource) body(ctx context.Context, m mwan3RuleModel, diags *diagsink) map[string]any {
+func (r *mwan3RuleResource) body(ctx context.Context, m mwan3RuleModel, diags *diagsink, create bool) map[string]any {
 	out := map[string]any{}
+	if create {
+		putStr(out, "id", m.ID)
+	}
 	putStr(out, "dest_ip", m.DestIp)
 	putStr(out, "dest_port", m.DestPort)
 	putStr(out, "family", m.Family)
@@ -108,7 +111,7 @@ func (r *mwan3RuleResource) Create(ctx context.Context, req resource.CreateReque
 		return
 	}
 	ds := newDiagsink(&resp.Diagnostics)
-	body := r.body(ctx, plan, ds)
+	body := r.body(ctx, plan, ds, true)
 	if resp.Diagnostics.HasError() {
 		return
 	}
@@ -151,7 +154,7 @@ func (r *mwan3RuleResource) Update(ctx context.Context, req resource.UpdateReque
 		return
 	}
 	ds := newDiagsink(&resp.Diagnostics)
-	body := r.body(ctx, plan, ds)
+	body := r.body(ctx, plan, ds, false)
 	if resp.Diagnostics.HasError() {
 		return
 	}

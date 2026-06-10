@@ -14,7 +14,7 @@ stability promise across OpenWrt releases, which is a poor fit for managed Terra
 
 ## Requirements
 
-- An OpenWrt router running **uapi >= 2.1.0** (OpenWrt 25.12+), reachable over HTTP(S).
+- An OpenWrt router running **uapi >= 2.2.0** (OpenWrt 25.12+), reachable over HTTP(S).
 - A bearer token created on the router: `uapi-token create --name terraform --scope '*:rw'`.
 - Terraform >= 1.0 (>= 1.10 for the `uapi_token` ephemeral resource) or OpenTofu >= 1.11.
 
@@ -59,7 +59,8 @@ The provider covers the full curated uapi surface (no `/raw`). The per-resource 
   `uapi_network_device`, `uapi_network_route`, `uapi_network_rule`, `uapi_network_bridge_vlan`,
   `uapi_network_wireguard_peer` (write-only `preshared_key`).
 - **Wireless:** `uapi_wireless_device`, `uapi_wireless_interface` (write-only `key`).
-- **DHCP/DNS:** `uapi_dhcp_host`, `uapi_dhcp_server`, `uapi_dhcp_dnsmasq` (singleton),
+- **DHCP/DNS:** `uapi_dhcp_host` (set `ip` for a static lease, or omit it for a
+  DNS-only `mac`+`name` reservation), `uapi_dhcp_server`, `uapi_dhcp_dnsmasq` (singleton),
   `uapi_dhcp_odhcpd` (singleton), `uapi_unbound_server` (singleton), `uapi_unbound_srv`
   (singleton: bind/outgoing addresses + raw `server:` lines), `uapi_unbound_ext`
   (singleton: raw extra-config lines).
@@ -174,6 +175,11 @@ resource "uapi_unbound_ext" "forwards" {
   Pre-existing *unmanaged* sections created out of band (LuCI/SSH/`wifi config`, e.g.
   `lan`, `wan`, `radio0`) keep their human name and are referenced by it
   (`match = { src_zone = "lan" }`).
+- **Settable id (uapi >= 2.2.0).** Every collection resource has an optional `id`: set it to
+  choose the uci section name (e.g. `id = "guest"`), or omit it for a server-assigned ULID. It is
+  create-only (changing it forces replacement). With this, importing a pre-existing *named*
+  section keeps its name, so you can manage your own `lan`/`wan` without a destroy. See the
+  "Managing pre-existing named sections" guide.
 - **Server-defaulted fields** (booleans, enum fallbacks, etc.) are modeled as
   `Optional + Computed`, so omitting them in config does not produce perpetual diffs.
 - **423 / 429 retries and parallelism.** uapi serializes writes per uci package (`423` locked)
@@ -199,14 +205,21 @@ destroy` only drops it from state and leaves the router's settings untouched.
 
 ### Importing adopts unmanaged sections
 
-Pre-existing anonymous uci sections (created by LuCI, SSH, etc.) surface as `managed = false`.
-Running `terraform import` on such a section **adopts** it: uapi renames it to a stable ULID and
-flips it to managed. This means import is a *mutating* operation for unmanaged sections. When this
-happens the provider emits a warning naming the old and new ids, so the rename is not silent.
+Pre-existing uci sections (created by LuCI, SSH, etc.) surface as `managed = false`.
+Running `terraform import` on one **adopts** it. Since uapi 2.2.0 the behaviour depends on whether
+the section is named:
+
+- **Named** sections (`lan`, `wan`, a named zone) are adopted **in place**: the name is kept, the
+  router is not mutated, and config with the same `id` reconciles with no replacement. This is the
+  safe way to manage the box's own interfaces (see the "Managing pre-existing named sections"
+  guide).
+- **Anonymous** sections (uci `cfgXXXXXX`) are adopted by **renaming** to a stable ULID and flipping
+  to managed. That case is mutating, so the provider emits a warning naming the old and new ids.
 
 ```sh
-terraform import uapi_firewall_rule.example r_01HX...   # already-managed: read-only import
-terraform import uapi_firewall_rule.example cfg0a1b2c   # anonymous: adopted, id becomes a ULID
+terraform import uapi_network_interface.lan lan          # named: adopted in place, id stays "lan"
+terraform import uapi_firewall_rule.example r_01HX...     # already-managed: read-only import
+terraform import uapi_firewall_rule.example cfg0a1b2c     # anonymous: adopted, id becomes a ULID
 ```
 
 > ⚠️ Be careful importing/editing `uapi_network_interface` for the interface that backs your

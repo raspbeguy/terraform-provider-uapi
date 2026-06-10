@@ -52,7 +52,7 @@ func (r *dhcpServerResource) Schema(_ context.Context, _ resource.SchemaRequest,
 	resp.Schema = schema.Schema{
 		Description: "Dhcp server.",
 		Attributes: map[string]schema.Attribute{
-			"id":          computedIDAttribute(),
+			"id":          optionalComputedIDAttribute(),
 			"managed":     managedAttribute(),
 			"etag":        etagAttribute(),
 			"dhcp_option": optionalComputedStringList("uci option dhcp_option."),
@@ -71,8 +71,11 @@ func (r *dhcpServerResource) Schema(_ context.Context, _ resource.SchemaRequest,
 	}
 }
 
-func (r *dhcpServerResource) body(ctx context.Context, m dhcpServerModel, diags *diagsink) map[string]any {
+func (r *dhcpServerResource) body(ctx context.Context, m dhcpServerModel, diags *diagsink, create bool) map[string]any {
 	out := map[string]any{}
+	if create {
+		putStr(out, "id", m.ID)
+	}
 	putList(ctx, out, "dhcp_option", m.DhcpOption, diags.d)
 	putStr(out, "dhcpv6", m.Dhcpv6)
 	putStr(out, "domain", m.Domain)
@@ -112,7 +115,7 @@ func (r *dhcpServerResource) Create(ctx context.Context, req resource.CreateRequ
 		return
 	}
 	ds := newDiagsink(&resp.Diagnostics)
-	body := r.body(ctx, plan, ds)
+	body := r.body(ctx, plan, ds, true)
 	if resp.Diagnostics.HasError() {
 		return
 	}
@@ -155,7 +158,7 @@ func (r *dhcpServerResource) Update(ctx context.Context, req resource.UpdateRequ
 		return
 	}
 	ds := newDiagsink(&resp.Diagnostics)
-	body := r.body(ctx, plan, ds)
+	body := r.body(ctx, plan, ds, false)
 	if resp.Diagnostics.HasError() {
 		return
 	}

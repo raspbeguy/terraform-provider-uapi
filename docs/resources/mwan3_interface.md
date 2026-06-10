@@ -34,6 +34,7 @@ resource "uapi_mwan3_interface" "example" {
 - `failure_latency` (Number) uci option failure_latency.
 - `failure_loss` (Number) uci option failure_loss.
 - `flush_conntrack` (List of String) uci option flush_conntrack.
+- `id` (String) Resource id. Set it at create to choose the uci section name (e.g. `lan`); omit it to let uapi assign a prefixed ULID. Create-only: changing it forces replacement.
 - `interval` (Number) uci option interval.
 - `keep_failure_interval` (Boolean) uci option keep_failure_interval.
 - `max_ttl` (Number) uci option max_ttl.
@@ -51,7 +52,6 @@ resource "uapi_mwan3_interface" "example" {
 ### Read-Only
 
 - `etag` (String) Opaque ETag of the resource's current state, used for If-Match optimistic concurrency.
-- `id` (String) Stable resource id assigned by uapi (a prefixed ULID).
 - `managed` (Boolean) Whether the underlying uci section is uapi-managed.
 
 ## Import

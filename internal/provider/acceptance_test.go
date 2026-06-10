@@ -9,6 +9,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-go/tfprotov6"
 	"github.com/hashicorp/terraform-plugin-testing/echoprovider"
 	"github.com/hashicorp/terraform-plugin-testing/helper/resource"
+	"github.com/hashicorp/terraform-plugin-testing/plancheck"
 	"github.com/hashicorp/terraform-plugin-testing/terraform"
 	"github.com/hashicorp/terraform-plugin-testing/tfversion"
 )
@@ -191,6 +192,105 @@ resource "uapi_unbound_srv" "this" {
   srv_line       = ["do-ip6: no"]
 }`,
 				Check: resource.TestCheckResourceAttr("uapi_unbound_srv.this", "interface_bind.1", "::1@5353"),
+			},
+		},
+	})
+}
+
+// TestAccSettableID covers the 2.2.0 settable id: a chosen id becomes the
+// section name, and changing it forces replacement (create-only).
+func TestAccSettableID(t *testing.T) {
+	m := newMockUAPI()
+	defer m.Close()
+	resource.Test(t, resource.TestCase{
+		ProtoV6ProviderFactories: accProviders(),
+		Steps: []resource.TestStep{
+			{
+				Config: providerHCL(m.URL) + `
+resource "uapi_dhcp_host" "h" {
+  id = "myhost"
+  ip = "192.168.9.5"
+}`,
+				Check: resource.TestCheckResourceAttr("uapi_dhcp_host.h", "id", "myhost"),
+			},
+			{
+				Config: providerHCL(m.URL) + `
+resource "uapi_dhcp_host" "h" {
+  id = "myhost2"
+  ip = "192.168.9.5"
+}`,
+				ConfigPlanChecks: resource.ConfigPlanChecks{
+					PreApply: []plancheck.PlanCheck{
+						plancheck.ExpectResourceAction("uapi_dhcp_host.h", plancheck.ResourceActionDestroyBeforeCreate),
+					},
+				},
+				Check: resource.TestCheckResourceAttr("uapi_dhcp_host.h", "id", "myhost2"),
+			},
+		},
+	})
+}
+
+// TestAccDhcpHostDNSOnly covers the 2.2.0 relaxation: ip is no longer required, so
+// a host can be a DNS-only reservation (mac + name, no static lease). Before 2.2.0
+// the schema marked ip required and this config failed at plan.
+func TestAccDhcpHostDNSOnly(t *testing.T) {
+	m := newMockUAPI()
+	defer m.Close()
+	resource.Test(t, resource.TestCase{
+		ProtoV6ProviderFactories: accProviders(),
+		Steps: []resource.TestStep{{
+			Config: providerHCL(m.URL) + `
+resource "uapi_dhcp_host" "dnsonly" {
+  id   = "dnsonly"
+  name = "printer"
+  mac  = "02:00:00:00:00:99"
+}`,
+			Check: resource.ComposeAggregateTestCheckFunc(
+				resource.TestCheckResourceAttr("uapi_dhcp_host.dnsonly", "name", "printer"),
+				resource.TestCheckResourceAttr("uapi_dhcp_host.dnsonly", "mac", "02:00:00:00:00:99"),
+				resource.TestCheckNoResourceAttr("uapi_dhcp_host.dnsonly", "ip"),
+			),
+		}},
+	})
+}
+
+// TestAccAdoptKeepsName is the P1 lockout regression: importing a pre-existing
+// *named* section keeps its name (uapi >= 2.2.0 adopt-keep-name), so config with
+// the same id reconciles with no replace. Before the fix this needed a ULID and
+// then wanted a destroy+recreate.
+func TestAccAdoptKeepsName(t *testing.T) {
+	m := newMockUAPI()
+	defer m.Close()
+	m.seedUnmanaged("/dhcp/hosts", "printer", map[string]any{"ip": "192.168.9.9"})
+	resource.Test(t, resource.TestCase{
+		ProtoV6ProviderFactories: accProviders(),
+		Steps: []resource.TestStep{
+			{
+				Config: providerHCL(m.URL) + `
+resource "uapi_dhcp_host" "printer" {
+  id = "printer"
+  ip = "192.168.9.9"
+}`,
+				ResourceName:       "uapi_dhcp_host.printer",
+				ImportState:        true,
+				ImportStateId:      "printer",
+				ImportStatePersist: true,
+				ImportStateCheck: func(states []*terraform.InstanceState) error {
+					if states[0].ID != "printer" {
+						return fmt.Errorf("adopt-keep-name: id should stay \"printer\", got %q", states[0].ID)
+					}
+					return nil
+				},
+			},
+			{
+				Config: providerHCL(m.URL) + `
+resource "uapi_dhcp_host" "printer" {
+  id = "printer"
+  ip = "192.168.9.9"
+}`,
+				ConfigPlanChecks: resource.ConfigPlanChecks{
+					PreApply: []plancheck.PlanCheck{plancheck.ExpectEmptyPlan()},
+				},
 			},
 		},
 	})

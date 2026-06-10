@@ -95,7 +95,7 @@ func (r *openvpnInstanceResource) Schema(_ context.Context, _ resource.SchemaReq
 	resp.Schema = schema.Schema{
 		Description: "Openvpn instance.",
 		Attributes: map[string]schema.Attribute{
-			"id":               computedIDAttribute(),
+			"id":               optionalComputedIDAttribute(),
 			"managed":          managedAttribute(),
 			"etag":             etagAttribute(),
 			"auth":             optionalComputedString("uci option auth."),
@@ -157,8 +157,11 @@ func (r *openvpnInstanceResource) Schema(_ context.Context, _ resource.SchemaReq
 	}
 }
 
-func (r *openvpnInstanceResource) body(ctx context.Context, m openvpnInstanceModel, diags *diagsink) map[string]any {
+func (r *openvpnInstanceResource) body(ctx context.Context, m openvpnInstanceModel, diags *diagsink, create bool) map[string]any {
 	out := map[string]any{}
+	if create {
+		putStr(out, "id", m.ID)
+	}
 	putStr(out, "auth", m.Auth)
 	putStr(out, "ca", m.Ca)
 	putStr(out, "cert", m.Cert)
@@ -281,7 +284,7 @@ func (r *openvpnInstanceResource) Create(ctx context.Context, req resource.Creat
 		return
 	}
 	ds := newDiagsink(&resp.Diagnostics)
-	body := r.body(ctx, plan, ds)
+	body := r.body(ctx, plan, ds, true)
 	if resp.Diagnostics.HasError() {
 		return
 	}
@@ -324,7 +327,7 @@ func (r *openvpnInstanceResource) Update(ctx context.Context, req resource.Updat
 		return
 	}
 	ds := newDiagsink(&resp.Diagnostics)
-	body := r.body(ctx, plan, ds)
+	body := r.body(ctx, plan, ds, false)
 	if resp.Diagnostics.HasError() {
 		return
 	}

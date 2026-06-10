@@ -43,7 +43,7 @@ func (r *snmpdCom2secResource) Schema(_ context.Context, _ resource.SchemaReques
 	resp.Schema = schema.Schema{
 		Description: "Snmpd com2sec.",
 		Attributes: map[string]schema.Attribute{
-			"id":        computedIDAttribute(),
+			"id":        optionalComputedIDAttribute(),
 			"managed":   managedAttribute(),
 			"etag":      etagAttribute(),
 			"community": schema.StringAttribute{Required: true, Description: "uci option community."},
@@ -53,8 +53,11 @@ func (r *snmpdCom2secResource) Schema(_ context.Context, _ resource.SchemaReques
 	}
 }
 
-func (r *snmpdCom2secResource) body(ctx context.Context, m snmpdCom2secModel, diags *diagsink) map[string]any {
+func (r *snmpdCom2secResource) body(ctx context.Context, m snmpdCom2secModel, diags *diagsink, create bool) map[string]any {
 	out := map[string]any{}
+	if create {
+		putStr(out, "id", m.ID)
+	}
 	putStr(out, "community", m.Community)
 	putStr(out, "secname", m.Secname)
 	putStr(out, "source", m.Source)
@@ -76,7 +79,7 @@ func (r *snmpdCom2secResource) Create(ctx context.Context, req resource.CreateRe
 		return
 	}
 	ds := newDiagsink(&resp.Diagnostics)
-	body := r.body(ctx, plan, ds)
+	body := r.body(ctx, plan, ds, true)
 	if resp.Diagnostics.HasError() {
 		return
 	}
@@ -119,7 +122,7 @@ func (r *snmpdCom2secResource) Update(ctx context.Context, req resource.UpdateRe
 		return
 	}
 	ds := newDiagsink(&resp.Diagnostics)
-	body := r.body(ctx, plan, ds)
+	body := r.body(ctx, plan, ds, false)
 	if resp.Diagnostics.HasError() {
 		return
 	}

@@ -58,7 +58,7 @@ hand-written specials are skipped by the generator and edited directly.
 - **Server-defaulted fields are `Optional + Computed`** with `UseStateForUnknown` (see the `optionalComputed*` helpers). Omitting them must not produce a perpetual diff against the value uapi fills in. New fields that the API defaults or normalizes follow this pattern; only genuinely caller-owned fields are plain `Required`/`Optional`.
 - **`body()` sends only known, non-null attributes.** Unknown computed values are omitted so the server applies its default. The `putX` helpers enforce this.
 - **Updates use `PUT` (full replace),** matching Terraform's "plan is the complete desired state". `PATCH` (merge) is only for the `system` singleton.
-- **`id` is the uapi ULID,** computed with `UseStateForUnknown`.
+- **`id` is settable at create on collections (uapi >= 2.2.0).** `optionalComputedIDAttribute` makes it `Optional + Computed` with `RequiresReplace` + `UseStateForUnknown`: set it to choose the uci section name, omit it for a server ULID. It is sent create-only (`if create { putStr(out, "id", ...) }`, never on PUT/PATCH). Singletons keep the plain computed `id` (`computedIDAttribute`).
 
 ## Forward compatibility (the uapi v1 contract)
 
@@ -86,7 +86,7 @@ provider major.
 
 - **`uapi_system` is a singleton.** No id segment, no create/delete on the wire. Create and Update both `PATCH /system`; Delete is a no-op that only drops state.
 - **`uapi_wireless_interface.key` is write-only.** uapi never returns it, so `read()` must leave the model's key untouched (preserving the planned value) and rely on the computed `has_key`. Do not map a key field out of the response.
-- **Import adopts.** `importByID` (in `helpers.go`) wraps `resolveImportID`, which checks `managed`; an unmanaged (anonymous) section is adopted via `POST .../adopt`, which renames it and changes its id. Import is therefore a mutating operation for unmanaged sections (intentional), and `importByID` emits a warning diagnostic naming the old and new ids when it adopts. All resource `ImportState` methods are one-liners delegating to `importByID`.
+- **Import adopts (adopt-keep-name since uapi 2.2.0).** `importByID` (in `helpers.go`) wraps `resolveImportID`, which checks `managed` and `POST .../adopt`s an unmanaged section. A *named* section is adopted in place (the id is unchanged, no router mutation); only an *anonymous* `cfgXXXX` section is renamed to a stable id. `importByID` warns only when the id actually changed (`adopted && id != req.ID`). All resource `ImportState` methods are one-liners delegating to `importByID`. `name` on `uapi_network_interface` is deprecated in favour of the settable `id`; the generator emits a `DeprecationMessage` from the spec's `deprecated: true`.
 - **423 locked is retried in the client,** honoring `Retry-After`. Do not add retry logic in resources.
 
 ## Testing

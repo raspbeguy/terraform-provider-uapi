@@ -32,6 +32,7 @@ resource "uapi_dhcp_server" "example" {
 - `domain` (String) uci option domain.
 - `dynamicdhcp` (Boolean) uci option dynamicdhcp.
 - `force` (Boolean) uci option force.
+- `id` (String) Resource id. Set it at create to choose the uci section name (e.g. `lan`); omit it to let uapi assign a prefixed ULID. Create-only: changing it forces replacement.
 - `ignore` (Boolean) uci option ignore.
 - `leasetime` (String) uci option leasetime.
 - `limit` (Number) uci option limit.
@@ -42,7 +43,6 @@ resource "uapi_dhcp_server" "example" {
 ### Read-Only
 
 - `etag` (String) Opaque ETag of the resource's current state, used for If-Match optimistic concurrency.
-- `id` (String) Stable resource id assigned by uapi (a prefixed ULID).
 - `managed` (Boolean) Whether the underlying uci section is uapi-managed.
 
 ## Import

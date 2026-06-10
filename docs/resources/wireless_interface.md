@@ -30,6 +30,7 @@ resource "uapi_wireless_interface" "example" {
 - `disabled` (Boolean) Whether the entry is disabled.
 - `encryption` (String) uci option encryption.
 - `hidden` (Boolean) uci option hidden.
+- `id` (String) Resource id. Set it at create to choose the uci section name (e.g. `lan`); omit it to let uapi assign a prefixed ULID. Create-only: changing it forces replacement.
 - `isolate` (Boolean) uci option isolate.
 - `key` (String, Sensitive) Encryption passphrase. Write-only: never returned by the API.
 - `mode` (String) uci option mode.
@@ -40,7 +41,6 @@ resource "uapi_wireless_interface" "example" {
 
 - `etag` (String) Opaque ETag of the resource's current state, used for If-Match optimistic concurrency.
 - `has_key` (Boolean) Whether a key is configured (the value is never returned).
-- `id` (String) Stable resource id assigned by uapi (a prefixed ULID).
 - `managed` (Boolean) Whether the underlying uci section is uapi-managed.
 
 ## Import

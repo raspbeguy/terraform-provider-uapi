@@ -41,7 +41,11 @@ func resAttr(f field) string {
 	case "writeonly":
 		return fmt.Sprintf("%q: schema.StringAttribute{Optional: true, Sensitive: true, Description: %q},", f.Name, f.Desc)
 	case "createonly":
-		return fmt.Sprintf("%q: schema.StringAttribute{Optional: true, PlanModifiers: []planmodifier.String{stringplanmodifier.RequiresReplace()}, Description: %q},", f.Name, f.Desc)
+		dep := ""
+		if f.Deprecated {
+			dep = fmt.Sprintf(" DeprecationMessage: %q,", f.Desc)
+		}
+		return fmt.Sprintf("%q: schema.StringAttribute{Optional: true, PlanModifiers: []planmodifier.String{stringplanmodifier.RequiresReplace()}, Description: %q,%s},", f.Name, f.Desc, dep)
 	case "computedbool":
 		return fmt.Sprintf("%q: schema.BoolAttribute{Computed: true, Description: %q},", f.Name, f.Desc)
 	default: // computedstring
@@ -174,7 +178,11 @@ func renderResource(r resModel) string {
 	p("\tresp.Schema = schema.Schema{")
 	p("\t\tDescription: %q,", titleFirst(r.Label)+".")
 	p("\t\tAttributes: map[string]schema.Attribute{")
-	p("\t\t\t\"id\": computedIDAttribute(),")
+	if r.Kind == "collection" {
+		p("\t\t\t\"id\": optionalComputedIDAttribute(),")
+	} else {
+		p("\t\t\t\"id\": computedIDAttribute(),")
+	}
 	p("\t\t\t\"managed\": managedAttribute(),")
 	p("\t\t\t\"etag\": etagAttribute(),")
 	for _, f := range r.Fields {
@@ -195,14 +203,23 @@ func renderResource(r resModel) string {
 	p("\t}")
 	p("}\n")
 
-	// body. The create flag is only emitted for resources that have a create-only
-	// field to gate (see bodyCreateArgs); without one it would be unused.
+	// body. The create flag gates create-only inputs: the settable id on every
+	// collection (uapi >= 2.2.0) and the deprecated network_interface name. It is
+	// emitted only when there is such a field to gate (see needsCreateFlag), else
+	// it would be an unused parameter.
 	createParam := ""
-	if r.hasCreateOnly() {
+	if r.needsCreateFlag() {
 		createParam = ", create bool"
 	}
 	p("func (r *%sResource) body(ctx context.Context, m %sModel, diags *diagsink%s) map[string]any {", r.Camel, r.Camel, createParam)
 	p("\tout := map[string]any{}")
+	// id is settable only on collections, only at create: the server assigns a
+	// ULID when it is unset (putStr omits null/unknown) and rejects it at PATCH.
+	if r.Kind == "collection" {
+		p("\tif create {")
+		p("\t\tputStr(out, \"id\", m.ID)")
+		p("\t}")
+	}
 	for _, f := range r.Fields {
 		s := bodyStmt(f, "m", "out")
 		if s == "" {
@@ -262,9 +279,10 @@ func renderResource(r resModel) string {
 
 // bodyCreateArgs returns the trailing argument passed to body() at the Create
 // and Update call sites. body() takes a create flag only when the resource has a
-// create-only field; otherwise both calls (and the signature) omit it.
+// create-only input (a settable id on collections, or a create-only field);
+// otherwise both calls (and the signature) omit it. See needsCreateFlag.
 func bodyCreateArgs(r resModel) (create, update string) {
-	if r.hasCreateOnly() {
+	if r.needsCreateFlag() {
 		return ", true", ", false"
 	}
 	return "", ""

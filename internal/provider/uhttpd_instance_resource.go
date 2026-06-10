@@ -59,7 +59,7 @@ func (r *uhttpdInstanceResource) Schema(_ context.Context, _ resource.SchemaRequ
 	resp.Schema = schema.Schema{
 		Description: "Uhttpd instance.",
 		Attributes: map[string]schema.Attribute{
-			"id":              computedIDAttribute(),
+			"id":              optionalComputedIDAttribute(),
 			"managed":         managedAttribute(),
 			"etag":            etagAttribute(),
 			"cert":            optionalComputedString("uci option cert."),
@@ -85,8 +85,11 @@ func (r *uhttpdInstanceResource) Schema(_ context.Context, _ resource.SchemaRequ
 	}
 }
 
-func (r *uhttpdInstanceResource) body(ctx context.Context, m uhttpdInstanceModel, diags *diagsink) map[string]any {
+func (r *uhttpdInstanceResource) body(ctx context.Context, m uhttpdInstanceModel, diags *diagsink, create bool) map[string]any {
 	out := map[string]any{}
+	if create {
+		putStr(out, "id", m.ID)
+	}
 	putStr(out, "cert", m.Cert)
 	putStr(out, "cgi_prefix", m.CgiPrefix)
 	putStr(out, "error_page", m.ErrorPage)
@@ -140,7 +143,7 @@ func (r *uhttpdInstanceResource) Create(ctx context.Context, req resource.Create
 		return
 	}
 	ds := newDiagsink(&resp.Diagnostics)
-	body := r.body(ctx, plan, ds)
+	body := r.body(ctx, plan, ds, true)
 	if resp.Diagnostics.HasError() {
 		return
 	}
@@ -183,7 +186,7 @@ func (r *uhttpdInstanceResource) Update(ctx context.Context, req resource.Update
 		return
 	}
 	ds := newDiagsink(&resp.Diagnostics)
-	body := r.body(ctx, plan, ds)
+	body := r.body(ctx, plan, ds, false)
 	if resp.Diagnostics.HasError() {
 		return
 	}

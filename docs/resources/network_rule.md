@@ -25,6 +25,7 @@ resource "uapi_network_rule" "example" {
 - `action` (String) uci option action.
 - `dest` (String) uci option dest.
 - `goto` (Number) uci option goto.
+- `id` (String) Resource id. Set it at create to choose the uci section name (e.g. `lan`); omit it to let uapi assign a prefixed ULID. Create-only: changing it forces replacement.
 - `in` (String) uci option in.
 - `invert` (Boolean) uci option invert.
 - `lookup` (Number) uci option lookup.
@@ -36,7 +37,6 @@ resource "uapi_network_rule" "example" {
 ### Read-Only
 
 - `etag` (String) Opaque ETag of the resource's current state, used for If-Match optimistic concurrency.
-- `id` (String) Stable resource id assigned by uapi (a prefixed ULID).
 - `managed` (Boolean) Whether the underlying uci section is uapi-managed.
 
 ## Import

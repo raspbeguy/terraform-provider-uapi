@@ -44,7 +44,7 @@ func (r *firewallForwardingResource) Schema(_ context.Context, _ resource.Schema
 	resp.Schema = schema.Schema{
 		Description: "Firewall forwarding.",
 		Attributes: map[string]schema.Attribute{
-			"id":      computedIDAttribute(),
+			"id":      optionalComputedIDAttribute(),
 			"managed": managedAttribute(),
 			"etag":    etagAttribute(),
 			"dest":    schema.StringAttribute{Required: true, Description: "uci option dest."},
@@ -55,8 +55,11 @@ func (r *firewallForwardingResource) Schema(_ context.Context, _ resource.Schema
 	}
 }
 
-func (r *firewallForwardingResource) body(ctx context.Context, m firewallForwardingModel, diags *diagsink) map[string]any {
+func (r *firewallForwardingResource) body(ctx context.Context, m firewallForwardingModel, diags *diagsink, create bool) map[string]any {
 	out := map[string]any{}
+	if create {
+		putStr(out, "id", m.ID)
+	}
 	putStr(out, "dest", m.Dest)
 	putBool(out, "enabled", m.Enabled)
 	putStr(out, "family", m.Family)
@@ -80,7 +83,7 @@ func (r *firewallForwardingResource) Create(ctx context.Context, req resource.Cr
 		return
 	}
 	ds := newDiagsink(&resp.Diagnostics)
-	body := r.body(ctx, plan, ds)
+	body := r.body(ctx, plan, ds, true)
 	if resp.Diagnostics.HasError() {
 		return
 	}
@@ -123,7 +126,7 @@ func (r *firewallForwardingResource) Update(ctx context.Context, req resource.Up
 		return
 	}
 	ds := newDiagsink(&resp.Diagnostics)
-	body := r.body(ctx, plan, ds)
+	body := r.body(ctx, plan, ds, false)
 	if resp.Diagnostics.HasError() {
 		return
 	}

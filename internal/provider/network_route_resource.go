@@ -49,7 +49,7 @@ func (r *networkRouteResource) Schema(_ context.Context, _ resource.SchemaReques
 	resp.Schema = schema.Schema{
 		Description: "Network route.",
 		Attributes: map[string]schema.Attribute{
-			"id":        computedIDAttribute(),
+			"id":        optionalComputedIDAttribute(),
 			"managed":   managedAttribute(),
 			"etag":      etagAttribute(),
 			"gateway":   optionalComputedString("uci option gateway."),
@@ -65,8 +65,11 @@ func (r *networkRouteResource) Schema(_ context.Context, _ resource.SchemaReques
 	}
 }
 
-func (r *networkRouteResource) body(ctx context.Context, m networkRouteModel, diags *diagsink) map[string]any {
+func (r *networkRouteResource) body(ctx context.Context, m networkRouteModel, diags *diagsink, create bool) map[string]any {
 	out := map[string]any{}
+	if create {
+		putStr(out, "id", m.ID)
+	}
 	putStr(out, "gateway", m.Gateway)
 	putStr(out, "interface", m.Interface)
 	putInt64(out, "metric", m.Metric)
@@ -100,7 +103,7 @@ func (r *networkRouteResource) Create(ctx context.Context, req resource.CreateRe
 		return
 	}
 	ds := newDiagsink(&resp.Diagnostics)
-	body := r.body(ctx, plan, ds)
+	body := r.body(ctx, plan, ds, true)
 	if resp.Diagnostics.HasError() {
 		return
 	}
@@ -143,7 +146,7 @@ func (r *networkRouteResource) Update(ctx context.Context, req resource.UpdateRe
 		return
 	}
 	ds := newDiagsink(&resp.Diagnostics)
-	body := r.body(ctx, plan, ds)
+	body := r.body(ctx, plan, ds, false)
 	if resp.Diagnostics.HasError() {
 		return
 	}

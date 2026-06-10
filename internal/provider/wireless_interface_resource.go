@@ -50,7 +50,7 @@ func (r *wirelessInterfaceResource) Schema(_ context.Context, _ resource.SchemaR
 	resp.Schema = schema.Schema{
 		Description: "Wireless interface.",
 		Attributes: map[string]schema.Attribute{
-			"id":         computedIDAttribute(),
+			"id":         optionalComputedIDAttribute(),
 			"managed":    managedAttribute(),
 			"etag":       etagAttribute(),
 			"device":     schema.StringAttribute{Required: true, Description: "Underlying device."},
@@ -67,8 +67,11 @@ func (r *wirelessInterfaceResource) Schema(_ context.Context, _ resource.SchemaR
 	}
 }
 
-func (r *wirelessInterfaceResource) body(ctx context.Context, m wirelessInterfaceModel, diags *diagsink) map[string]any {
+func (r *wirelessInterfaceResource) body(ctx context.Context, m wirelessInterfaceModel, diags *diagsink, create bool) map[string]any {
 	out := map[string]any{}
+	if create {
+		putStr(out, "id", m.ID)
+	}
 	putStr(out, "device", m.Device)
 	putBool(out, "disabled", m.Disabled)
 	putStr(out, "encryption", m.Encryption)
@@ -103,7 +106,7 @@ func (r *wirelessInterfaceResource) Create(ctx context.Context, req resource.Cre
 		return
 	}
 	ds := newDiagsink(&resp.Diagnostics)
-	body := r.body(ctx, plan, ds)
+	body := r.body(ctx, plan, ds, true)
 	if resp.Diagnostics.HasError() {
 		return
 	}
@@ -146,7 +149,7 @@ func (r *wirelessInterfaceResource) Update(ctx context.Context, req resource.Upd
 		return
 	}
 	ds := newDiagsink(&resp.Diagnostics)
-	body := r.body(ctx, plan, ds)
+	body := r.body(ctx, plan, ds, false)
 	if resp.Diagnostics.HasError() {
 		return
 	}

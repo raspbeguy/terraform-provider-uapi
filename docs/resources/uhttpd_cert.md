@@ -30,6 +30,7 @@ resource "uapi_uhttpd_cert" "example" {
 - `bits` (Number) uci option bits.
 - `country` (String) uci option country.
 - `days` (Number) uci option days.
+- `id` (String) Resource id. Set it at create to choose the uci section name (e.g. `lan`); omit it to let uapi assign a prefixed ULID. Create-only: changing it forces replacement.
 - `location` (String) uci option location.
 - `organization` (String) uci option organization.
 - `state` (String) uci option state.
@@ -37,7 +38,6 @@ resource "uapi_uhttpd_cert" "example" {
 ### Read-Only
 
 - `etag` (String) Opaque ETag of the resource's current state, used for If-Match optimistic concurrency.
-- `id` (String) Stable resource id assigned by uapi (a prefixed ULID).
 - `managed` (Boolean) Whether the underlying uci section is uapi-managed.
 
 ## Import

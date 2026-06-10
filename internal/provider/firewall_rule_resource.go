@@ -55,7 +55,7 @@ func (r *firewallRuleResource) Schema(_ context.Context, _ resource.SchemaReques
 	resp.Schema = schema.Schema{
 		Description: "Firewall rule.",
 		Attributes: map[string]schema.Attribute{
-			"id":      computedIDAttribute(),
+			"id":      optionalComputedIDAttribute(),
 			"managed": managedAttribute(),
 			"etag":    etagAttribute(),
 			"enabled": optionalComputedBool("Whether the entry is active."),
@@ -79,8 +79,11 @@ func (r *firewallRuleResource) Schema(_ context.Context, _ resource.SchemaReques
 	}
 }
 
-func (r *firewallRuleResource) body(ctx context.Context, m firewallRuleModel, diags *diagsink) map[string]any {
+func (r *firewallRuleResource) body(ctx context.Context, m firewallRuleModel, diags *diagsink, create bool) map[string]any {
 	out := map[string]any{}
+	if create {
+		putStr(out, "id", m.ID)
+	}
 	putBool(out, "enabled", m.Enabled)
 	putStr(out, "name", m.Name)
 	putStr(out, "target", m.Target)
@@ -128,7 +131,7 @@ func (r *firewallRuleResource) Create(ctx context.Context, req resource.CreateRe
 		return
 	}
 	ds := newDiagsink(&resp.Diagnostics)
-	body := r.body(ctx, plan, ds)
+	body := r.body(ctx, plan, ds, true)
 	if resp.Diagnostics.HasError() {
 		return
 	}
@@ -171,7 +174,7 @@ func (r *firewallRuleResource) Update(ctx context.Context, req resource.UpdateRe
 		return
 	}
 	ds := newDiagsink(&resp.Diagnostics)
-	body := r.body(ctx, plan, ds)
+	body := r.body(ctx, plan, ds, false)
 	if resp.Diagnostics.HasError() {
 		return
 	}

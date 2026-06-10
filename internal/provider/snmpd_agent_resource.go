@@ -41,7 +41,7 @@ func (r *snmpdAgentResource) Schema(_ context.Context, _ resource.SchemaRequest,
 	resp.Schema = schema.Schema{
 		Description: "Snmpd agent.",
 		Attributes: map[string]schema.Attribute{
-			"id":           computedIDAttribute(),
+			"id":           optionalComputedIDAttribute(),
 			"managed":      managedAttribute(),
 			"etag":         etagAttribute(),
 			"agentaddress": optionalComputedStringList("uci option agentaddress."),
@@ -49,8 +49,11 @@ func (r *snmpdAgentResource) Schema(_ context.Context, _ resource.SchemaRequest,
 	}
 }
 
-func (r *snmpdAgentResource) body(ctx context.Context, m snmpdAgentModel, diags *diagsink) map[string]any {
+func (r *snmpdAgentResource) body(ctx context.Context, m snmpdAgentModel, diags *diagsink, create bool) map[string]any {
 	out := map[string]any{}
+	if create {
+		putStr(out, "id", m.ID)
+	}
 	putList(ctx, out, "agentaddress", m.Agentaddress, diags.d)
 	return out
 }
@@ -68,7 +71,7 @@ func (r *snmpdAgentResource) Create(ctx context.Context, req resource.CreateRequ
 		return
 	}
 	ds := newDiagsink(&resp.Diagnostics)
-	body := r.body(ctx, plan, ds)
+	body := r.body(ctx, plan, ds, true)
 	if resp.Diagnostics.HasError() {
 		return
 	}
@@ -111,7 +114,7 @@ func (r *snmpdAgentResource) Update(ctx context.Context, req resource.UpdateRequ
 		return
 	}
 	ds := newDiagsink(&resp.Diagnostics)
-	body := r.body(ctx, plan, ds)
+	body := r.body(ctx, plan, ds, false)
 	if resp.Diagnostics.HasError() {
 		return
 	}

@@ -43,7 +43,7 @@ func (r *mwan3MemberResource) Schema(_ context.Context, _ resource.SchemaRequest
 	resp.Schema = schema.Schema{
 		Description: "Mwan3 member.",
 		Attributes: map[string]schema.Attribute{
-			"id":        computedIDAttribute(),
+			"id":        optionalComputedIDAttribute(),
 			"managed":   managedAttribute(),
 			"etag":      etagAttribute(),
 			"interface": schema.StringAttribute{Required: true, Description: "Network interface this entry applies to."},
@@ -53,8 +53,11 @@ func (r *mwan3MemberResource) Schema(_ context.Context, _ resource.SchemaRequest
 	}
 }
 
-func (r *mwan3MemberResource) body(ctx context.Context, m mwan3MemberModel, diags *diagsink) map[string]any {
+func (r *mwan3MemberResource) body(ctx context.Context, m mwan3MemberModel, diags *diagsink, create bool) map[string]any {
 	out := map[string]any{}
+	if create {
+		putStr(out, "id", m.ID)
+	}
 	putStr(out, "interface", m.Interface)
 	putInt64(out, "metric", m.Metric)
 	putInt64(out, "weight", m.Weight)
@@ -76,7 +79,7 @@ func (r *mwan3MemberResource) Create(ctx context.Context, req resource.CreateReq
 		return
 	}
 	ds := newDiagsink(&resp.Diagnostics)
-	body := r.body(ctx, plan, ds)
+	body := r.body(ctx, plan, ds, true)
 	if resp.Diagnostics.HasError() {
 		return
 	}
@@ -119,7 +122,7 @@ func (r *mwan3MemberResource) Update(ctx context.Context, req resource.UpdateReq
 		return
 	}
 	ds := newDiagsink(&resp.Diagnostics)
-	body := r.body(ctx, plan, ds)
+	body := r.body(ctx, plan, ds, false)
 	if resp.Diagnostics.HasError() {
 		return
 	}

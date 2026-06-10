@@ -42,7 +42,7 @@ func (r *mwan3PolicyResource) Schema(_ context.Context, _ resource.SchemaRequest
 	resp.Schema = schema.Schema{
 		Description: "Mwan3 policy.",
 		Attributes: map[string]schema.Attribute{
-			"id":          computedIDAttribute(),
+			"id":          optionalComputedIDAttribute(),
 			"managed":     managedAttribute(),
 			"etag":        etagAttribute(),
 			"last_resort": optionalComputedString("uci option last_resort."),
@@ -51,8 +51,11 @@ func (r *mwan3PolicyResource) Schema(_ context.Context, _ resource.SchemaRequest
 	}
 }
 
-func (r *mwan3PolicyResource) body(ctx context.Context, m mwan3PolicyModel, diags *diagsink) map[string]any {
+func (r *mwan3PolicyResource) body(ctx context.Context, m mwan3PolicyModel, diags *diagsink, create bool) map[string]any {
 	out := map[string]any{}
+	if create {
+		putStr(out, "id", m.ID)
+	}
 	putStr(out, "last_resort", m.LastResort)
 	putList(ctx, out, "use_members", m.UseMembers, diags.d)
 	return out
@@ -72,7 +75,7 @@ func (r *mwan3PolicyResource) Create(ctx context.Context, req resource.CreateReq
 		return
 	}
 	ds := newDiagsink(&resp.Diagnostics)
-	body := r.body(ctx, plan, ds)
+	body := r.body(ctx, plan, ds, true)
 	if resp.Diagnostics.HasError() {
 		return
 	}
@@ -115,7 +118,7 @@ func (r *mwan3PolicyResource) Update(ctx context.Context, req resource.UpdateReq
 		return
 	}
 	ds := newDiagsink(&resp.Diagnostics)
-	body := r.body(ctx, plan, ds)
+	body := r.body(ctx, plan, ds, false)
 	if resp.Diagnostics.HasError() {
 		return
 	}

@@ -30,6 +30,7 @@ resource "uapi_mwan3_rule" "example" {
 - `dest_ip` (String) Destination IP addresses or CIDRs.
 - `dest_port` (String) Destination ports.
 - `family` (String) Address family: any, ipv4, or ipv6.
+- `id` (String) Resource id. Set it at create to choose the uci section name (e.g. `lan`); omit it to let uapi assign a prefixed ULID. Create-only: changing it forces replacement.
 - `ipset` (String) uci option ipset.
 - `logging` (Boolean) uci option logging.
 - `proto` (String) Protocol.
@@ -41,7 +42,6 @@ resource "uapi_mwan3_rule" "example" {
 ### Read-Only
 
 - `etag` (String) Opaque ETag of the resource's current state, used for If-Match optimistic concurrency.
-- `id` (String) Stable resource id assigned by uapi (a prefixed ULID).
 - `managed` (Boolean) Whether the underlying uci section is uapi-managed.
 
 ## Import

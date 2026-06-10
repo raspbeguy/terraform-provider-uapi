@@ -29,6 +29,7 @@ resource "uapi_firewall_zone" "example" {
 
 - `family` (String) Address family: any, ipv4, or ipv6.
 - `forward` (String) uci option forward.
+- `id` (String) Resource id. Set it at create to choose the uci section name (e.g. `lan`); omit it to let uapi assign a prefixed ULID. Create-only: changing it forces replacement.
 - `input` (String) uci option input.
 - `masq` (Boolean) uci option masq.
 - `mtu_fix` (Boolean) uci option mtu_fix.
@@ -38,7 +39,6 @@ resource "uapi_firewall_zone" "example" {
 ### Read-Only
 
 - `etag` (String) Opaque ETag of the resource's current state, used for If-Match optimistic concurrency.
-- `id` (String) Stable resource id assigned by uapi (a prefixed ULID).
 - `managed` (Boolean) Whether the underlying uci section is uapi-managed.
 
 ## Import

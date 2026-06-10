@@ -48,7 +48,7 @@ func (r *sqmQueueResource) Schema(_ context.Context, _ resource.SchemaRequest, r
 	resp.Schema = schema.Schema{
 		Description: "Sqm queue.",
 		Attributes: map[string]schema.Attribute{
-			"id":        computedIDAttribute(),
+			"id":        optionalComputedIDAttribute(),
 			"managed":   managedAttribute(),
 			"etag":      etagAttribute(),
 			"download":  optionalComputedInt64("Download shaping rate in kbit/s."),
@@ -63,8 +63,11 @@ func (r *sqmQueueResource) Schema(_ context.Context, _ resource.SchemaRequest, r
 	}
 }
 
-func (r *sqmQueueResource) body(ctx context.Context, m sqmQueueModel, diags *diagsink) map[string]any {
+func (r *sqmQueueResource) body(ctx context.Context, m sqmQueueModel, diags *diagsink, create bool) map[string]any {
 	out := map[string]any{}
+	if create {
+		putStr(out, "id", m.ID)
+	}
 	putInt64(out, "download", m.Download)
 	putBool(out, "enabled", m.Enabled)
 	putStr(out, "interface", m.Interface)
@@ -96,7 +99,7 @@ func (r *sqmQueueResource) Create(ctx context.Context, req resource.CreateReques
 		return
 	}
 	ds := newDiagsink(&resp.Diagnostics)
-	body := r.body(ctx, plan, ds)
+	body := r.body(ctx, plan, ds, true)
 	if resp.Diagnostics.HasError() {
 		return
 	}
@@ -139,7 +142,7 @@ func (r *sqmQueueResource) Update(ctx context.Context, req resource.UpdateReques
 		return
 	}
 	ds := newDiagsink(&resp.Diagnostics)
-	body := r.body(ctx, plan, ds)
+	body := r.body(ctx, plan, ds, false)
 	if resp.Diagnostics.HasError() {
 		return
 	}

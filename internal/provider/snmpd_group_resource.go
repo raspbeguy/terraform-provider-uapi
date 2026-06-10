@@ -43,7 +43,7 @@ func (r *snmpdGroupResource) Schema(_ context.Context, _ resource.SchemaRequest,
 	resp.Schema = schema.Schema{
 		Description: "Snmpd group.",
 		Attributes: map[string]schema.Attribute{
-			"id":      computedIDAttribute(),
+			"id":      optionalComputedIDAttribute(),
 			"managed": managedAttribute(),
 			"etag":    etagAttribute(),
 			"group":   schema.StringAttribute{Required: true, Description: "uci option group."},
@@ -53,8 +53,11 @@ func (r *snmpdGroupResource) Schema(_ context.Context, _ resource.SchemaRequest,
 	}
 }
 
-func (r *snmpdGroupResource) body(ctx context.Context, m snmpdGroupModel, diags *diagsink) map[string]any {
+func (r *snmpdGroupResource) body(ctx context.Context, m snmpdGroupModel, diags *diagsink, create bool) map[string]any {
 	out := map[string]any{}
+	if create {
+		putStr(out, "id", m.ID)
+	}
 	putStr(out, "group", m.Group)
 	putStr(out, "secname", m.Secname)
 	putStr(out, "version", m.Version)
@@ -76,7 +79,7 @@ func (r *snmpdGroupResource) Create(ctx context.Context, req resource.CreateRequ
 		return
 	}
 	ds := newDiagsink(&resp.Diagnostics)
-	body := r.body(ctx, plan, ds)
+	body := r.body(ctx, plan, ds, true)
 	if resp.Diagnostics.HasError() {
 		return
 	}
@@ -119,7 +122,7 @@ func (r *snmpdGroupResource) Update(ctx context.Context, req resource.UpdateRequ
 		return
 	}
 	ds := newDiagsink(&resp.Diagnostics)
-	body := r.body(ctx, plan, ds)
+	body := r.body(ctx, plan, ds, false)
 	if resp.Diagnostics.HasError() {
 		return
 	}

@@ -12,8 +12,8 @@ var update = flag.Bool("update", false, "update golden files in testdata/")
 
 // fixtureProps exercises every field-classification branch the generator has:
 // required string, optional+computed string/int/bool/list, write-only,
-// read-only bool/string, and create-only. buildResource sorts field names, so
-// output is stable.
+// read-only bool/string, and create-only (also marked deprecated, to pin the
+// DeprecationMessage path). buildResource sorts field names, so output is stable.
 func fixtureProps() map[string]specProp {
 	return map[string]specProp{
 		"name":       {Type: "string"},
@@ -23,7 +23,7 @@ func fixtureProps() map[string]specProp {
 		"secret":     {Type: "string", WriteOnly: true},
 		"has_secret": {Type: "boolean", ReadOnly: true},
 		"note":       {Type: "string", ReadOnly: true},
-		"wgname":     {Type: "string", Description: "Create-only kernel name."},
+		"wgname":     {Type: "string", Description: "Create-only kernel name.", Deprecated: true},
 	}
 }
 
@@ -43,6 +43,7 @@ func goldenCases() map[string]string {
 	singleton := descriptor{
 		Type: "lab_single", Schema: "LabSingle", Collection: "lab/single",
 		Kind: "singleton", Label: "lab single", GenDataSource: true,
+		CreateOnly: []string{"wgname"},
 	}
 	cr := buildResource(collection, fixtureProps(), []string{"name"})
 	sr := buildResource(singleton, fixtureProps(), nil)

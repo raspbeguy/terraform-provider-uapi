@@ -238,6 +238,10 @@ func IsNotFound(err error) bool { return statusIs(err, http.StatusNotFound) }
 // IsPreconditionFailed reports whether err is an API 412 (stale If-Match).
 func IsPreconditionFailed(err error) bool { return statusIs(err, http.StatusPreconditionFailed) }
 
+// IsConflict reports whether err is an API 409 (e.g. creating a section whose id
+// already exists).
+func IsConflict(err error) bool { return statusIs(err, http.StatusConflict) }
+
 // GetObject fetches a single resource and its ETag. found is false on 404.
 func (c *Client) GetObject(ctx context.Context, path string) (obj map[string]any, etag string, found bool, err error) {
 	raw, _, etag, _, err := c.do(ctx, http.MethodGet, path, nil, "")

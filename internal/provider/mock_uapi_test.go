@@ -185,8 +185,18 @@ func (m *mockUAPI) decode(r *http.Request) map[string]any {
 
 func (m *mockUAPI) handleCollectionCreate(w http.ResponseWriter, r *http.Request, coll string) {
 	body := m.decode(r)
-	m.counter++
-	id := fmt.Sprintf("x_%d", m.counter)
+	// Caller-supplied section name (settable id, uapi >= 2.2.0): use it and 409
+	// if it collides; otherwise assign a synthetic id.
+	id, _ := body["id"].(string)
+	if id != "" {
+		if m.store[coll][id] != nil {
+			apiErr(w, http.StatusConflict, "conflict")
+			return
+		}
+	} else {
+		m.counter++
+		id = fmt.Sprintf("x_%d", m.counter)
+	}
 	body["id"] = id
 	body["managed"] = true
 	if m.store[coll] == nil {
@@ -245,6 +255,13 @@ func (m *mockUAPI) handleAdopt(w http.ResponseWriter, r *http.Request, coll, id 
 	obj := m.store[coll][id]
 	if obj == nil {
 		apiErr(w, http.StatusNotFound, "not_found")
+		return
+	}
+	// Named section: adopt keeps the name (uapi >= 2.2.0), an idempotent ack that
+	// only flips managed. Only an anonymous cfgXXXX section is renamed to a stable id.
+	if !strings.HasPrefix(id, "cfg") {
+		obj["managed"] = true
+		writeJSON(w, http.StatusOK, obj, etagOf(obj))
 		return
 	}
 	m.counter++

@@ -28,6 +28,7 @@ resource "uapi_snmpd_access" "example" {
 ### Optional
 
 - `context` (String) uci option context.
+- `id` (String) Resource id. Set it at create to choose the uci section name (e.g. `lan`); omit it to let uapi assign a prefixed ULID. Create-only: changing it forces replacement.
 - `level` (String) uci option level.
 - `notify` (String) uci option notify.
 - `prefix` (String) uci option prefix.
@@ -38,7 +39,6 @@ resource "uapi_snmpd_access" "example" {
 ### Read-Only
 
 - `etag` (String) Opaque ETag of the resource's current state, used for If-Match optimistic concurrency.
-- `id` (String) Stable resource id assigned by uapi (a prefixed ULID).
 - `managed` (Boolean) Whether the underlying uci section is uapi-managed.
 
 ## Import

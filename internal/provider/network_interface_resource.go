@@ -70,7 +70,7 @@ func (r *networkInterfaceResource) Schema(_ context.Context, _ resource.SchemaRe
 	resp.Schema = schema.Schema{
 		Description: "Network interface.",
 		Attributes: map[string]schema.Attribute{
-			"id":              computedIDAttribute(),
+			"id":              optionalComputedIDAttribute(),
 			"managed":         managedAttribute(),
 			"etag":            etagAttribute(),
 			"addresses":       optionalComputedStringList("uci option addresses."),
@@ -93,7 +93,7 @@ func (r *networkInterfaceResource) Schema(_ context.Context, _ resource.SchemaRe
 			"listen_port":     optionalComputedInt64("uci option listen_port."),
 			"metric":          optionalComputedInt64("uci option metric."),
 			"mtu":             optionalComputedInt64("uci option mtu."),
-			"name":            schema.StringAttribute{Optional: true, PlanModifiers: []planmodifier.String{stringplanmodifier.RequiresReplace()}, Description: "Create-time only; picks the uci section name (which becomes the uapi `id`). When omitted, the server emits a 14-char `wg_<rand>` for proto=wireguard (fits Linux IFNAMSIZ for the kernel netdev) or a 28-char ULID otherwise. Useful for LuCI parity (`lan`, `wan`, `guest`) and readable cross-references."},
+			"name":            schema.StringAttribute{Optional: true, PlanModifiers: []planmodifier.String{stringplanmodifier.RequiresReplace()}, Description: "DEPRECATED in 2.2.0: use `id` instead (the universal section-name input across every resource). Both are accepted during the deprecation window; if both are supplied they must match. `name` is scheduled for removal in v3. See docs/deprecations.md.", DeprecationMessage: "DEPRECATED in 2.2.0: use `id` instead (the universal section-name input across every resource). Both are accepted during the deprecation window; if both are supplied they must match. `name` is scheduled for removal in v3. See docs/deprecations.md."},
 			"netmask":         optionalComputedString("uci option netmask."),
 			"nohostroute":     optionalComputedBool("uci option nohostroute."),
 			"peerdns":         optionalComputedBool("uci option peerdns."),
@@ -107,6 +107,9 @@ func (r *networkInterfaceResource) Schema(_ context.Context, _ resource.SchemaRe
 
 func (r *networkInterfaceResource) body(ctx context.Context, m networkInterfaceModel, diags *diagsink, create bool) map[string]any {
 	out := map[string]any{}
+	if create {
+		putStr(out, "id", m.ID)
+	}
 	putList(ctx, out, "addresses", m.Addresses, diags.d)
 	putBool(out, "auto", m.Auto)
 	putStr(out, "clientid", m.Clientid)

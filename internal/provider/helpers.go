@@ -149,10 +149,14 @@ func importByID(ctx context.Context, c *client.Client, collection, label string,
 		resp.Diagnostics.AddError("Error importing "+label, err.Error())
 		return
 	}
-	if adopted {
+	// Only an anonymous section (cfgXXXX) is renamed on adopt, which changes the
+	// id and mutates the router; warn so the operator notices. A named section is
+	// adopted in place (uapi >= 2.2.0): the id is unchanged and uci state is not
+	// touched, so the import is non-mutating and needs no warning.
+	if adopted && id != req.ID {
 		resp.Diagnostics.AddWarning(
-			"Adopted an unmanaged section",
-			fmt.Sprintf("%s %q was not uapi-managed, so it was adopted and renamed to %q. "+
+			"Adopted and renamed an anonymous section",
+			fmt.Sprintf("%s %q was an unmanaged anonymous section, so it was adopted and renamed to %q. "+
 				"This import mutated the router; the resource id is now %q.", label, req.ID, id, id),
 		)
 	}
@@ -194,6 +198,15 @@ func writeErr(diags *diag.Diagnostics, action, label string, err error) {
 			label+" changed outside Terraform",
 			"The "+label+" was modified on the router since Terraform last read it (If-Match / ETag mismatch). "+
 				"Run a refresh (or re-plan) to pick up the current state, then retry.\n\n"+err.Error(),
+		)
+		return
+	}
+	if client.IsConflict(err) {
+		diags.AddError(
+			"Error "+action+" "+label,
+			"A uci section with this id already exists on the router. To manage it, "+
+				"`terraform import` it (an unmanaged named section is adopted in place, "+
+				"keeping its name), or choose a different `id`.\n\n"+err.Error(),
 		)
 		return
 	}

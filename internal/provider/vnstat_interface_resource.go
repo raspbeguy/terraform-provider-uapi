@@ -42,7 +42,7 @@ func (r *vnstatInterfaceResource) Schema(_ context.Context, _ resource.SchemaReq
 	resp.Schema = schema.Schema{
 		Description: "Vnstat interface.",
 		Attributes: map[string]schema.Attribute{
-			"id":        computedIDAttribute(),
+			"id":        optionalComputedIDAttribute(),
 			"managed":   managedAttribute(),
 			"etag":      etagAttribute(),
 			"enabled":   optionalComputedBool("Whether the entry is active."),
@@ -51,8 +51,11 @@ func (r *vnstatInterfaceResource) Schema(_ context.Context, _ resource.SchemaReq
 	}
 }
 
-func (r *vnstatInterfaceResource) body(ctx context.Context, m vnstatInterfaceModel, diags *diagsink) map[string]any {
+func (r *vnstatInterfaceResource) body(ctx context.Context, m vnstatInterfaceModel, diags *diagsink, create bool) map[string]any {
 	out := map[string]any{}
+	if create {
+		putStr(out, "id", m.ID)
+	}
 	putBool(out, "enabled", m.Enabled)
 	putStr(out, "interface", m.Interface)
 	return out
@@ -72,7 +75,7 @@ func (r *vnstatInterfaceResource) Create(ctx context.Context, req resource.Creat
 		return
 	}
 	ds := newDiagsink(&resp.Diagnostics)
-	body := r.body(ctx, plan, ds)
+	body := r.body(ctx, plan, ds, true)
 	if resp.Diagnostics.HasError() {
 		return
 	}
@@ -115,7 +118,7 @@ func (r *vnstatInterfaceResource) Update(ctx context.Context, req resource.Updat
 		return
 	}
 	ds := newDiagsink(&resp.Diagnostics)
-	body := r.body(ctx, plan, ds)
+	body := r.body(ctx, plan, ds, false)
 	if resp.Diagnostics.HasError() {
 		return
 	}

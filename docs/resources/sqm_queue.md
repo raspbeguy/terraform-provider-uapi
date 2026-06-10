@@ -29,6 +29,7 @@ resource "uapi_sqm_queue" "example" {
 
 - `download` (Number) Download shaping rate in kbit/s.
 - `enabled` (Boolean) Whether the entry is active.
+- `id` (String) Resource id. Set it at create to choose the uci section name (e.g. `lan`); omit it to let uapi assign a prefixed ULID. Create-only: changing it forces replacement.
 - `linklayer` (String) uci option linklayer.
 - `overhead` (Number) uci option overhead.
 - `qdisc` (String) uci option qdisc.
@@ -38,7 +39,6 @@ resource "uapi_sqm_queue" "example" {
 ### Read-Only
 
 - `etag` (String) Opaque ETag of the resource's current state, used for If-Match optimistic concurrency.
-- `id` (String) Stable resource id assigned by uapi (a prefixed ULID).
 - `managed` (Boolean) Whether the underlying uci section is uapi-managed.
 
 ## Import

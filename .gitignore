@@ -23,3 +23,5 @@ dev.tfrc
 # Local uapi-maintainer correspondence, not provider source
 /response.md
 /feedback.md
+/*_feedback.md
+/*_response.md

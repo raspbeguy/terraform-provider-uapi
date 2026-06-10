@@ -28,6 +28,7 @@ resource "uapi_network_route" "example" {
 ### Optional
 
 - `gateway` (String) uci option gateway.
+- `id` (String) Resource id. Set it at create to choose the uci section name (e.g. `lan`); omit it to let uapi assign a prefixed ULID. Create-only: changing it forces replacement.
 - `interface` (String) Network interface this entry applies to.
 - `metric` (Number) uci option metric.
 - `mtu` (Number) uci option mtu.
@@ -39,7 +40,6 @@ resource "uapi_network_route" "example" {
 ### Read-Only
 
 - `etag` (String) Opaque ETag of the resource's current state, used for If-Match optimistic concurrency.
-- `id` (String) Stable resource id assigned by uapi (a prefixed ULID).
 - `managed` (Boolean) Whether the underlying uci section is uapi-managed.
 
 ## Import

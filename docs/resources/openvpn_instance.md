@@ -38,6 +38,7 @@ resource "uapi_openvpn_instance" "example" {
 - `enabled` (Boolean) Whether the entry is active.
 - `float` (Boolean) uci option float.
 - `group` (String) uci option group.
+- `id` (String) Resource id. Set it at create to choose the uci section name (e.g. `lan`); omit it to let uapi assign a prefixed ULID. Create-only: changing it forces replacement.
 - `ifconfig` (String) uci option ifconfig.
 - `ifconfig_pool` (String) uci option ifconfig_pool.
 - `keepalive` (String) uci option keepalive.
@@ -81,7 +82,6 @@ resource "uapi_openvpn_instance" "example" {
 - `has_key` (Boolean) Whether a key is configured (the value is never returned).
 - `has_pkcs12` (Boolean) Whether a PKCS#12 bundle is configured.
 - `has_tls_auth` (Boolean) Whether tls-auth/tls-crypt key material is configured.
-- `id` (String) Stable resource id assigned by uapi (a prefixed ULID).
 - `managed` (Boolean) Whether the underlying uci section is uapi-managed.
 
 ## Import

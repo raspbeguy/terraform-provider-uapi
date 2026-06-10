@@ -59,7 +59,7 @@ func (r *firewallRedirectResource) Schema(_ context.Context, _ resource.SchemaRe
 	resp.Schema = schema.Schema{
 		Description: "Firewall redirect.",
 		Attributes: map[string]schema.Attribute{
-			"id":              computedIDAttribute(),
+			"id":              optionalComputedIDAttribute(),
 			"managed":         managedAttribute(),
 			"etag":            etagAttribute(),
 			"enabled":         optionalComputedBool("Whether the entry is active."),
@@ -87,8 +87,11 @@ func (r *firewallRedirectResource) Schema(_ context.Context, _ resource.SchemaRe
 	}
 }
 
-func (r *firewallRedirectResource) body(ctx context.Context, m firewallRedirectModel, diags *diagsink) map[string]any {
+func (r *firewallRedirectResource) body(ctx context.Context, m firewallRedirectModel, diags *diagsink, create bool) map[string]any {
 	out := map[string]any{}
+	if create {
+		putStr(out, "id", m.ID)
+	}
 	putBool(out, "enabled", m.Enabled)
 	putStr(out, "name", m.Name)
 	putBool(out, "reflection", m.Reflection)
@@ -144,7 +147,7 @@ func (r *firewallRedirectResource) Create(ctx context.Context, req resource.Crea
 		return
 	}
 	ds := newDiagsink(&resp.Diagnostics)
-	body := r.body(ctx, plan, ds)
+	body := r.body(ctx, plan, ds, true)
 	if resp.Diagnostics.HasError() {
 		return
 	}
@@ -187,7 +190,7 @@ func (r *firewallRedirectResource) Update(ctx context.Context, req resource.Upda
 		return
 	}
 	ds := newDiagsink(&resp.Diagnostics)
-	body := r.body(ctx, plan, ds)
+	body := r.body(ctx, plan, ds, false)
 	if resp.Diagnostics.HasError() {
 		return
 	}

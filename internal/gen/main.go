@@ -25,6 +25,7 @@ type specProp struct {
 	WriteOnly   bool   `json:"writeOnly"`
 	ReadOnly    bool   `json:"readOnly"`
 	Description string `json:"description"`
+	Deprecated  bool   `json:"deprecated"`
 }
 
 func main() {
@@ -62,11 +63,12 @@ func main() {
 
 // field is a fully-resolved attribute ready to template.
 type field struct {
-	Name   string // tfsdk + wire name
-	GoName string
-	GoType string // "types.String" | "types.Int64" | "types.Bool" | "types.List"
-	Kind   string // "required" | "optcomp" | "writeonly" | "computedbool" | "computedstring"
-	Desc   string
+	Name       string // tfsdk + wire name
+	GoName     string
+	GoType     string // "types.String" | "types.Int64" | "types.Bool" | "types.List"
+	Kind       string // "required" | "optcomp" | "writeonly" | "createonly" | "computedbool" | "computedstring"
+	Desc       string
+	Deprecated bool // spec `deprecated: true`: emit a DeprecationMessage
 }
 
 type nested struct {
@@ -95,6 +97,14 @@ func (r resModel) hasCreateOnly() bool {
 		}
 	}
 	return false
+}
+
+// needsCreateFlag reports whether body() takes a `create bool` parameter: true
+// when the resource has a create-only input to gate. Every collection has one
+// now (the settable id, uapi >= 2.2.0); singletons only if they carry a
+// create-only field (none do today).
+func (r resModel) needsCreateFlag() bool {
+	return r.Kind == "collection" || r.hasCreateOnly()
 }
 
 // dsFields drops create-only fields: they are caller-supplied write inputs the
@@ -141,7 +151,7 @@ func buildResource(d descriptor, props map[string]specProp, required []string) r
 		if typeOf(p) == "object" {
 			continue // nested (match) comes from the descriptor, not the spec
 		}
-		f := field{Name: n, GoName: pascal(n), Desc: d.Desc(n)}
+		f := field{Name: n, GoName: pascal(n), Desc: d.Desc(n), Deprecated: p.Deprecated}
 		// createonly fields (e.g. an interface `name`): caller-supplied at create,
 		// immutable, never returned, rejected on PUT/PATCH. Use the spec's own
 		// description since these are too special for the commonDesc table.
@@ -169,6 +179,12 @@ func buildResource(d descriptor, props map[string]specProp, required []string) r
 			} else {
 				f.Kind = "optcomp"
 			}
+		}
+		// Only the createonly path emits a DeprecationMessage today (the lone
+		// deprecated input is network_interface.name). Fail loudly rather than
+		// silently dropping a deprecation if a future spec deprecates another kind.
+		if f.Deprecated && f.Kind != "createonly" {
+			fail("deprecated field %q has kind %q with no DeprecationMessage path; add one in resAttr", n, f.Kind)
 		}
 		r.Fields = append(r.Fields, f)
 	}

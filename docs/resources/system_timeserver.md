@@ -24,6 +24,7 @@ resource "uapi_system_timeserver" "example" {
 
 - `enable_server` (Boolean) uci option enable_server.
 - `enabled` (Boolean) Whether the entry is active.
+- `id` (String) Resource id. Set it at create to choose the uci section name (e.g. `lan`); omit it to let uapi assign a prefixed ULID. Create-only: changing it forces replacement.
 - `interface` (String) Network interface this entry applies to.
 - `server` (List of String) uci option server.
 - `use_dhcp` (Boolean) uci option use_dhcp.
@@ -31,7 +32,6 @@ resource "uapi_system_timeserver" "example" {
 ### Read-Only
 
 - `etag` (String) Opaque ETag of the resource's current state, used for If-Match optimistic concurrency.
-- `id` (String) Stable resource id assigned by uapi (a prefixed ULID).
 - `managed` (Boolean) Whether the underlying uci section is uapi-managed.
 
 ## Import

@@ -19,6 +19,24 @@ func computedIDAttribute() schema.StringAttribute {
 	}
 }
 
+// optionalComputedIDAttribute is the id of a collection resource: settable at
+// create to pick the uci section name (uapi >= 2.2.0), otherwise server-assigned.
+// RequiresReplace because the section name is create-only (a rename is a new
+// section); UseStateForUnknown keeps a server-assigned id stable so an unset id
+// never shows a perpetual diff. Setting id to an existing section's name lets
+// `terraform import` then plan reconcile with no replace.
+func optionalComputedIDAttribute() schema.StringAttribute {
+	return schema.StringAttribute{
+		Optional:    true,
+		Computed:    true,
+		Description: "Resource id. Set it at create to choose the uci section name (e.g. `lan`); omit it to let uapi assign a prefixed ULID. Create-only: changing it forces replacement.",
+		PlanModifiers: []planmodifier.String{
+			stringplanmodifier.RequiresReplace(),
+			stringplanmodifier.UseStateForUnknown(),
+		},
+	}
+}
+
 func managedAttribute() schema.BoolAttribute {
 	return schema.BoolAttribute{
 		Computed:      true,

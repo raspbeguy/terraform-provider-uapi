@@ -25,6 +25,7 @@ resource "uapi_dropbear_instance" "example" {
 - `banner_file` (String) uci option banner_file.
 - `enable` (Boolean) uci option enable.
 - `gateway_ports` (Boolean) uci option gateway_ports.
+- `id` (String) Resource id. Set it at create to choose the uci section name (e.g. `lan`); omit it to let uapi assign a prefixed ULID. Create-only: changing it forces replacement.
 - `interface` (String) Network interface this entry applies to.
 - `password_auth` (Boolean) uci option password_auth.
 - `port` (Number) uci option port.
@@ -34,7 +35,6 @@ resource "uapi_dropbear_instance" "example" {
 ### Read-Only
 
 - `etag` (String) Opaque ETag of the resource's current state, used for If-Match optimistic concurrency.
-- `id` (String) Stable resource id assigned by uapi (a prefixed ULID).
 - `managed` (Boolean) Whether the underlying uci section is uapi-managed.
 
 ## Import

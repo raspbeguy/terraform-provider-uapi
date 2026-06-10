@@ -35,6 +35,7 @@ resource "uapi_network_wireguard_peer" "example" {
 - `disabled` (Boolean) Whether the entry is disabled.
 - `endpoint_host` (String) uci option endpoint_host.
 - `endpoint_port` (Number) uci option endpoint_port.
+- `id` (String) Resource id. Set it at create to choose the uci section name (e.g. `lan`); omit it to let uapi assign a prefixed ULID. Create-only: changing it forces replacement.
 - `persistent_keepalive` (Number) uci option persistent_keepalive.
 - `preshared_key` (String, Sensitive) WireGuard preshared key. Write-only: never returned by the API.
 - `route_allowed_ips` (Boolean) uci option route_allowed_ips.
@@ -43,7 +44,6 @@ resource "uapi_network_wireguard_peer" "example" {
 
 - `etag` (String) Opaque ETag of the resource's current state, used for If-Match optimistic concurrency.
 - `has_preshared_key` (Boolean) Whether a preshared key is configured.
-- `id` (String) Stable resource id assigned by uapi (a prefixed ULID).
 - `managed` (Boolean) Whether the underlying uci section is uapi-managed.
 
 ## Import

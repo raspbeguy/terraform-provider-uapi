@@ -32,12 +32,12 @@ resource "uapi_firewall_rule" "example" {
 ### Optional
 
 - `enabled` (Boolean) Whether the entry is active.
+- `id` (String) Resource id. Set it at create to choose the uci section name (e.g. `lan`); omit it to let uapi assign a prefixed ULID. Create-only: changing it forces replacement.
 - `name` (String) Optional section name.
 
 ### Read-Only
 
 - `etag` (String) Opaque ETag of the resource's current state, used for If-Match optimistic concurrency.
-- `id` (String) Stable resource id assigned by uapi (a prefixed ULID).
 - `managed` (Boolean) Whether the underlying uci section is uapi-managed.
 
 <a id="nestedatt--match"></a>

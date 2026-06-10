@@ -51,7 +51,7 @@ func (r *dhcpHostResource) Schema(_ context.Context, _ resource.SchemaRequest, r
 	resp.Schema = schema.Schema{
 		Description: "Dhcp host.",
 		Attributes: map[string]schema.Attribute{
-			"id":          computedIDAttribute(),
+			"id":          optionalComputedIDAttribute(),
 			"managed":     managedAttribute(),
 			"etag":        etagAttribute(),
 			"broadcast":   optionalComputedBool("uci option broadcast."),
@@ -59,7 +59,7 @@ func (r *dhcpHostResource) Schema(_ context.Context, _ resource.SchemaRequest, r
 			"duid":        optionalComputedString("uci option duid."),
 			"hostid":      optionalComputedString("uci option hostid."),
 			"instance":    optionalComputedString("uci option instance."),
-			"ip":          schema.StringAttribute{Required: true, Description: "uci option ip."},
+			"ip":          optionalComputedString("uci option ip."),
 			"leasetime":   optionalComputedString("uci option leasetime."),
 			"mac":         optionalComputedString("uci option mac."),
 			"mac_aliases": optionalComputedStringList("uci option mac_aliases."),
@@ -69,8 +69,11 @@ func (r *dhcpHostResource) Schema(_ context.Context, _ resource.SchemaRequest, r
 	}
 }
 
-func (r *dhcpHostResource) body(ctx context.Context, m dhcpHostModel, diags *diagsink) map[string]any {
+func (r *dhcpHostResource) body(ctx context.Context, m dhcpHostModel, diags *diagsink, create bool) map[string]any {
 	out := map[string]any{}
+	if create {
+		putStr(out, "id", m.ID)
+	}
 	putBool(out, "broadcast", m.Broadcast)
 	putBool(out, "dns", m.Dns)
 	putStr(out, "duid", m.Duid)
@@ -108,7 +111,7 @@ func (r *dhcpHostResource) Create(ctx context.Context, req resource.CreateReques
 		return
 	}
 	ds := newDiagsink(&resp.Diagnostics)
-	body := r.body(ctx, plan, ds)
+	body := r.body(ctx, plan, ds, true)
 	if resp.Diagnostics.HasError() {
 		return
 	}
@@ -151,7 +154,7 @@ func (r *dhcpHostResource) Update(ctx context.Context, req resource.UpdateReques
 		return
 	}
 	ds := newDiagsink(&resp.Diagnostics)
-	body := r.body(ctx, plan, ds)
+	body := r.body(ctx, plan, ds, false)
 	if resp.Diagnostics.HasError() {
 		return
 	}
