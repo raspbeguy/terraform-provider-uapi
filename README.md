@@ -4,6 +4,8 @@ A Terraform / OpenTofu provider for [uapi](https://github.com/openwrt-iac/uapi),
 It manages OpenWrt configuration (firewall, network, wireless, DHCP, system) through uapi's
 curated endpoints, which expose stable resource IDs and atomic, transactional writes.
 
+> Not affiliated with the OpenWrt or HashiCorp projects. This provider started as the work of a single operator solving a specific problem on their own network, shared in the open in the hope it is useful to others with similar needs.
+
 ## Scope
 
 This provider targets the **curated** uapi endpoints only. It deliberately does **not** use the
